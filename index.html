@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI 项目总览台｜三列看板版</title>
+<style>
+:root{
+  --bg:#f4f1ea; --paper:#fffdf8; --ink:#222620; --muted:#72776e; --line:#ddd8cf;
+  --green:#43614b; --green-soft:#edf4ef; --amber:#b27a3d; --amber-soft:#fbf2e6;
+  --stone:#8f928c; --stone-soft:#f2f1ed; --shadow:0 14px 36px rgba(44,47,41,.08);
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(196,174,135,.18), transparent 24%),
+    linear-gradient(180deg, #f7f5ef 0%, #efede7 100%);
+}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+.wrap{max-width:1580px;margin:auto;padding:24px 24px 70px}
+.hero{
+  background:linear-gradient(135deg,#263b2f 0%, #45604b 65%, #6e7d66 100%);
+  color:white;border-radius:30px;padding:30px 32px;box-shadow:var(--shadow);position:relative;overflow:hidden;
+}
+.hero::after{
+  content:""; position:absolute; right:-80px; top:-110px; width:280px; height:280px; border-radius:50%;
+  border:1px solid rgba(255,255,255,.14); box-shadow:0 0 0 42px rgba(255,255,255,.035), 0 0 0 84px rgba(255,255,255,.02);
+}
+.eyebrow{font-size:12px;letter-spacing:.18em;opacity:.74}
+.hero h1{font:600 44px Georgia,"Songti SC",serif;margin:10px 0 10px}
+.hero p{max-width:860px;line-height:1.75;margin:0;color:rgba(255,255,255,.8)}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px;position:relative;z-index:2}
+.btn{border:1px solid transparent;border-radius:12px;padding:10px 14px;background:#fff;color:#21362a;font-weight:700}
+.btn.alt{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.25)}
+.btn.ghost{background:#fff;border-color:var(--line);color:var(--ink)}
+
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin:16px 0}
+.stat{background:rgba(255,253,248,.96);border:1px solid var(--line);border-radius:20px;padding:16px 18px;box-shadow:0 8px 20px rgba(40,43,37,.03)}
+.stat span{font-size:13px;color:var(--muted)} .stat b{display:block;font:30px Georgia,serif;margin-top:5px}
+
+.panel{background:rgba(255,253,248,.94);border:1px solid var(--line);border-radius:24px;padding:20px;box-shadow:0 10px 28px rgba(40,43,37,.045);margin-top:16px}
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}
+.head h2{margin:0;font:600 23px Georgia,"Songti SC",serif}
+.sub{font-size:13px;color:var(--muted);line-height:1.6;margin-top:4px}
+
+.controls{display:grid;grid-template-columns:minmax(220px,1.6fr) repeat(4,minmax(125px,.6fr));gap:9px}
+.ctl{width:100%;padding:10px 11px;border-radius:11px;border:1px solid var(--line);background:#fff;color:var(--ink)}
+.summary{display:flex;justify-content:space-between;gap:12px;color:var(--muted);font-size:12px;margin:14px 0 8px}
+
+.kanban{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}
+.col{border:1px solid var(--line);border-radius:22px;background:#faf8f3;min-height:520px;display:flex;flex-direction:column;overflow:hidden}
+.col.done{background:linear-gradient(180deg,#f8fcf8 0%, #f4f8f4 100%)}
+.col.doing{background:linear-gradient(180deg,#fffaf3 0%, #fcf6ee 100%)}
+.col.idea{background:linear-gradient(180deg,#fbfbf9 0%, #f5f4f1 100%)}
+.col-top{padding:18px 18px 14px;border-bottom:1px solid var(--line)}
+.col-tag{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:700;border:1px solid var(--line);background:#fff}
+.col.done .col-tag{color:var(--green);background:var(--green-soft)}
+.col.doing .col-tag{color:var(--amber);background:var(--amber-soft)}
+.col.idea .col-tag{color:#666b63;background:var(--stone-soft)}
+.col-title{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px}
+.col-title h3{margin:0;font-size:20px}
+.count{font:24px Georgia,serif}
+.col-desc{font-size:12px;color:var(--muted);line-height:1.65;margin-top:8px}
+.col-art{margin-top:12px;height:74px;border-radius:16px;border:1px dashed var(--line);background:#fff;display:flex;align-items:center;justify-content:center;gap:18px;overflow:hidden}
+.icon-bubble{width:48px;height:48px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:24px;background:#f3f1eb;border:1px solid var(--line)}
+.cards{padding:14px;display:grid;gap:12px;align-content:start}
+
+.col-filters{padding:0 14px 12px}
+.filter-box{background:#fff;border:1px dashed var(--line);border-radius:14px;padding:10px 10px 8px}
+.filter-group{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}
+.filter-group:last-child{margin-bottom:0}
+.filter-label{font-size:11px;color:var(--muted);padding-right:4px;min-width:52px}
+.filter-chip{border:1px solid var(--line);background:#f7f5ef;color:var(--ink);border-radius:999px;padding:5px 9px;font-size:11px;line-height:1}
+.filter-chip.active{background:#263b2f;color:#fff;border-color:#263b2f}
+
+.card{position:relative;background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:15px 15px 14px;box-shadow:0 6px 16px rgba(40,43,37,.035)}
+.card:before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:#8e928b}
+.col.done .card:before{background:#4d7a61} .col.doing .card:before{background:#bb7c3d} .col.idea .card:before{background:#8b8f88}
+.code{font-size:11px;color:#9b9d96;margin-bottom:5px} .card h4{margin:0;font-size:15px;line-height:1.5}
+.badges{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.badge{font-size:11px;padding:5px 8px;border-radius:999px;border:1px solid var(--line);background:#f6f4ee}
+.nature{background:#f7eee4;color:#765332} .high{background:#e8f4eb;color:#2f724d} .medium{background:#fff3df;color:#94611a} .low{background:#f9e8e5;color:#974742}
+.meta{display:grid;grid-template-columns:48px 1fr;gap:7px 9px;font-size:13px;line-height:1.55}
+.meta b{color:#96998f;font-weight:500} .meta div{color:#4d534c}
+.next{margin-top:10px;padding:10px 11px;border-radius:11px;background:#f1efe8;font-size:13px;line-height:1.55}
+.foot{display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px dashed var(--line);margin-top:11px;padding-top:11px}
+.review{font-size:11px;color:var(--muted)} .mini{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 8px;font-size:12px}
+
+.legend{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.legend-item{padding:14px;border:1px solid var(--line);border-radius:16px;background:#f9f7f2}
+.legend-item strong{display:block;margin-bottom:6px}
+.legend-item p{margin:0;font-size:13px;color:var(--muted);line-height:1.65}
+
+.due{display:flex;gap:8px;flex-wrap:wrap} .chip{border:1px solid var(--line);background:#faf6ec;border-radius:999px;padding:8px 10px;font-size:12px}
+
+dialog{border:0;border-radius:24px;padding:0;width:min(760px,calc(100vw - 30px));box-shadow:0 30px 90px rgba(0,0,0,.24)}
+dialog::backdrop{background:rgba(20,25,20,.48)}
+.modal{padding:24px} .modalTop{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.modalTop h2{margin:0;font:600 22px Georgia,"Songti SC",serif} .close{border:0;background:#efede7;border-radius:50%;width:34px;height:34px;font-size:20px}
+.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:13px} .field.full{grid-column:1/-1}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px} .field textarea{min-height:74px;resize:vertical}
+.modalActions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+
+.empty{text-align:center;color:var(--muted);padding:34px 16px;border:1px dashed var(--line);border-radius:16px;background:#fff}
+
+@media(max-width:1200px){
+  .kanban{grid-template-columns:1fr}
+}
+@media(max-width:960px){
+  .stats,.legend{grid-template-columns:1fr 1fr}
+  .controls{grid-template-columns:1fr 1fr}
+}
+@media(max-width:620px){
+  .wrap{padding:13px 11px 50px}
+  .hero{padding:24px 20px;border-radius:22px}
+  .hero h1{font-size:34px}
+  .stats,.legend,.controls,.formgrid{grid-template-columns:1fr}
+  .summary{display:block}
+  .summary span{display:block;margin-top:5px}
+  .panel{padding:16px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section class="hero">
+    <div class="eyebrow">AI PROJECT PORTFOLIO</div>
+    <h1>AI 项目总览台</h1>
+    <p>这版改成了按时态分列的三栏看板：左边看成果沉淀，中间看正在推进，右边看灵感池。这样更容易把握全局，也更适合持续录入与定期复盘。</p>
+    <div class="actions">
+      <button class="btn" id="addBtn">＋ 录入新项目</button>
+      <button class="btn alt" id="jsonOut">导出 JSON</button>
+      <button class="btn alt" id="csvOut">导出 CSV</button>
+      <button class="btn alt" id="jsonIn">导入 JSON</button>
+      <input id="fileIn" type="file" accept=".json" hidden>
+    </div>
+  </section>
+
+  <section class="stats">
+    <div class="stat"><span>全部项目</span><b id="sTotal">0</b></div>
+    <div class="stat"><span>已做成</span><b id="sDone">0</b></div>
+    <div class="stat"><span>正在做</span><b id="sDoing">0</b></div>
+    <div class="stat"><span>还没开始</span><b id="sIdea">0</b></div>
+    <div class="stat"><span>高可行性待启动</span><b id="sReady">0</b></div>
+  </section>
+
+  <section class="panel">
+    <div class="head">
+      <div>
+        <h2>筛选与聚焦</h2>
+        <div class="sub">保留顶部全局筛选，并新增每一列自己的单独筛选，阅读路径会更直观。</div>
+      </div>
+      <button class="btn ghost" id="clearBtn">清除筛选</button>
+    </div>
+    <div class="controls">
+      <input class="ctl" id="q" placeholder="搜索项目、目的、分析、下一步…" />
+      <select class="ctl" id="natureFilter">
+        <option value="">全部性质</option>
+        <option>一次性</option>
+        <option>持续迭代</option>
+        <option>周期执行</option>
+      </select>
+      <select class="ctl" id="feasFilter">
+        <option value="">全部可行性</option>
+        <option>高</option>
+        <option>中</option>
+        <option>低</option>
+      </select>
+      <select class="ctl" id="resultFilter">
+        <option value="">全部结果</option>
+        <option>成功</option>
+        <option>失败</option>
+        <option>进行中</option>
+        <option>未开始</option>
+        <option>暂停</option>
+      </select>
+      <select class="ctl" id="sortMode">
+        <option value="default">默认排序</option>
+        <option value="feas">按可行性</option>
+        <option value="updated">按更新时间</option>
+      </select>
+    </div>
+    <div class="summary">
+      <span id="summaryText"></span>
+      <span>修改自动保存在当前浏览器；建议定期导出 JSON。</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="head">
+      <div>
+        <h2>项目说明图例</h2>
+        <div class="sub">小图形和标签不只是装饰，也用于帮助快速识别项目类型。</div>
+      </div>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><strong>✅ 已做成</strong><p>看成果沉淀、哪些值得复用、哪些应该继续做成系统。</p></div>
+      <div class="legend-item"><strong>🛠️ 正在做</strong><p>看当前推进中的重点项目，明确下一步和最近复盘时间。</p></div>
+      <div class="legend-item"><strong>💡 还没开始</strong><p>看灵感池与未来方向，优先挑高可行性且最能带来价值的项目。</p></div>
+      <div class="legend-item"><strong>🏷️ 标签</strong><p>一次性、持续迭代、周期执行 + 可行性标签，帮助快速判断怎么管理。</p></div>
+    </div>
+  </section>
+
+  <section class="panel" id="duePanel">
+    <div class="head">
+      <div>
+        <h2>近期复盘池</h2>
+        <div class="sub">到达复盘日期的项目会自动显示，点一下可直接编辑。</div>
+      </div>
+    </div>
+    <div class="due" id="dueList"></div>
+  </section>
+
+  <section class="panel">
+    <div class="head">
+      <div>
+        <h2>三列时态看板</h2>
+        <div class="sub">你可以一眼看到：哪些已经沉淀成果，哪些正在推进，哪些还在蓄势待发。</div>
+      </div>
+    </div>
+    <div class="kanban">
+      <div class="col done">
+        <div class="col-top">
+          <div class="col-tag">✅ 已做成</div>
+          <div class="col-title"><h3>成果区</h3><div class="count" id="doneCount">0</div></div>
+          <div class="col-desc">适合复盘“成功经验、可复用模板、还能继续升级成系统的部分”。</div>
+          <div class="col-art">
+            <div class="icon-bubble">🎯</div>
+            <div class="icon-bubble">📊</div>
+            <div class="icon-bubble">🌱</div>
+          </div>
+        </div>
+        
+        <div class="col-filters">
+          <div class="filter-box">
+            <div class="filter-group" data-col="done" data-type="nature">
+              <span class="filter-label">项目性质</span>
+              <button class="filter-chip active" type="button" data-col="done" data-type="nature" data-value="">全部</button>
+              <button class="filter-chip" type="button" data-col="done" data-type="nature" data-value="一次性">一次性</button>
+              <button class="filter-chip" type="button" data-col="done" data-type="nature" data-value="持续迭代">持续迭代</button>
+              <button class="filter-chip" type="button" data-col="done" data-type="nature" data-value="周期执行">周期执行</button>
+            </div>
+            <div class="filter-group" data-col="done" data-type="result">
+              <span class="filter-label">结果状态</span>
+              <button class="filter-chip active" type="button" data-col="done" data-type="result" data-value="">全部</button>
+              <button class="filter-chip" type="button" data-col="done" data-type="result" data-value="成功">成功</button>
+              <button class="filter-chip" type="button" data-col="done" data-type="result" data-value="失败">失败</button>
+              <button class="filter-chip" type="button" data-col="done" data-type="result" data-value="进行中">进行中</button>
+              <button class="filter-chip" type="button" data-col="done" data-type="result" data-value="未开始">未开始</button>
+              <button class="filter-chip" type="button" data-col="done" data-type="result" data-value="暂停">暂停</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="cards" id="doneCards"></div>
+      </div>
+
+      <div class="col doing">
+        <div class="col-top">
+          <div class="col-tag">🛠️ 正在做</div>
+          <div class="col-title"><h3>推进区</h3><div class="count" id="doingCount">0</div></div>
+          <div class="col-desc">最值得重点关注的一列：只看现在真正要推进的项目，避免分散。</div>
+          <div class="col-art">
+            <div class="icon-bubble">⚙️</div>
+            <div class="icon-bubble">🧭</div>
+            <div class="icon-bubble">🔥</div>
+          </div>
+        </div>
+        
+        <div class="col-filters">
+          <div class="filter-box">
+            <div class="filter-group" data-col="doing" data-type="nature">
+              <span class="filter-label">项目性质</span>
+              <button class="filter-chip active" type="button" data-col="doing" data-type="nature" data-value="">全部</button>
+              <button class="filter-chip" type="button" data-col="doing" data-type="nature" data-value="一次性">一次性</button>
+              <button class="filter-chip" type="button" data-col="doing" data-type="nature" data-value="持续迭代">持续迭代</button>
+              <button class="filter-chip" type="button" data-col="doing" data-type="nature" data-value="周期执行">周期执行</button>
+            </div>
+            <div class="filter-group" data-col="doing" data-type="result">
+              <span class="filter-label">结果状态</span>
+              <button class="filter-chip active" type="button" data-col="doing" data-type="result" data-value="">全部</button>
+              <button class="filter-chip" type="button" data-col="doing" data-type="result" data-value="成功">成功</button>
+              <button class="filter-chip" type="button" data-col="doing" data-type="result" data-value="失败">失败</button>
+              <button class="filter-chip" type="button" data-col="doing" data-type="result" data-value="进行中">进行中</button>
+              <button class="filter-chip" type="button" data-col="doing" data-type="result" data-value="未开始">未开始</button>
+              <button class="filter-chip" type="button" data-col="doing" data-type="result" data-value="暂停">暂停</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="cards" id="doingCards"></div>
+      </div>
+
+      <div class="col idea">
+        <div class="col-top">
+          <div class="col-tag">💡 还没开始</div>
+          <div class="col-title"><h3>灵感池</h3><div class="count" id="ideaCount">0</div></div>
+          <div class="col-desc">不再只是“待办堆积”，而是一个可筛选、可分优先级、可逐步启动的创意池。</div>
+          <div class="col-art">
+            <div class="icon-bubble">💭</div>
+            <div class="icon-bubble">📚</div>
+            <div class="icon-bubble">🚀</div>
+          </div>
+        </div>
+        
+        <div class="col-filters">
+          <div class="filter-box">
+            <div class="filter-group" data-col="idea" data-type="nature">
+              <span class="filter-label">项目性质</span>
+              <button class="filter-chip active" type="button" data-col="idea" data-type="nature" data-value="">全部</button>
+              <button class="filter-chip" type="button" data-col="idea" data-type="nature" data-value="一次性">一次性</button>
+              <button class="filter-chip" type="button" data-col="idea" data-type="nature" data-value="持续迭代">持续迭代</button>
+              <button class="filter-chip" type="button" data-col="idea" data-type="nature" data-value="周期执行">周期执行</button>
+            </div>
+            <div class="filter-group" data-col="idea" data-type="result">
+              <span class="filter-label">结果状态</span>
+              <button class="filter-chip active" type="button" data-col="idea" data-type="result" data-value="">全部</button>
+              <button class="filter-chip" type="button" data-col="idea" data-type="result" data-value="成功">成功</button>
+              <button class="filter-chip" type="button" data-col="idea" data-type="result" data-value="失败">失败</button>
+              <button class="filter-chip" type="button" data-col="idea" data-type="result" data-value="进行中">进行中</button>
+              <button class="filter-chip" type="button" data-col="idea" data-type="result" data-value="未开始">未开始</button>
+              <button class="filter-chip" type="button" data-col="idea" data-type="result" data-value="暂停">暂停</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="cards" id="ideaCards"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<dialog id="dlg">
+  <form class="modal" id="form">
+    <div class="modalTop">
+      <h2 id="formTitle">录入项目</h2>
+      <button type="button" class="close" id="closeDlg">×</button>
+    </div>
+    <input type="hidden" id="fid" />
+    <div class="formgrid">
+      <div class="field full"><label>项目名称</label><input class="ctl" id="fname" required /></div>
+      <div class="field"><label>时态</label>
+        <select class="ctl" id="fstatus">
+          <option>还没开始</option><option>正在做</option><option>已做成</option>
+        </select>
+      </div>
+      <div class="field"><label>结果</label>
+        <select class="ctl" id="fresult">
+          <option>未开始</option><option>进行中</option><option>成功</option><option>失败</option><option>暂停</option>
+        </select>
+      </div>
+      <div class="field"><label>项目性质</label>
+        <select class="ctl" id="fnature">
+          <option>一次性</option><option>持续迭代</option><option>周期执行</option>
+        </select>
+      </div>
+      <div class="field"><label>可行性</label>
+        <select class="ctl" id="ffeas">
+          <option>高</option><option>中</option><option>低</option>
+        </select>
+      </div>
+      <div class="field full"><label>目的</label><textarea class="ctl" id="fpurpose"></textarea></div>
+      <div class="field full"><label>可能性分析</label><textarea class="ctl" id="fanalysis"></textarea></div>
+      <div class="field full"><label>下一步</label><textarea class="ctl" id="fnext"></textarea></div>
+      <div class="field"><label>复盘频率</label>
+        <select class="ctl" id="fcycle">
+          <option>无需复盘</option><option>每周</option><option>每月</option><option>每季度</option><option>灵感池月度复盘</option>
+        </select>
+      </div>
+      <div class="field"><label>下次复盘日期</label><input class="ctl" id="freview" type="date" /></div>
+    </div>
+    <div class="modalActions">
+      <button type="button" class="btn ghost" id="cancelBtn">取消</button>
+      <button class="btn">保存</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const SEED = [{"id": "D01", "name": "让 AI 读小红书并进行搜索、单篇分析、博主风格拆解与模仿建议", "status": "已做成", "result": "成功", "nature": "持续迭代", "feasibility": "高", "purpose": "把内容研究从“凭感觉刷”变成可复用的创作分析流程", "analysis": "路径已验证，后续关键是固定分析模板、样本量与合规边界", "nextAction": "沉淀 1 份固定分析模板，下一次直接复用", "reviewCycle": "每季度", "nextReview": "2026-09-30", "updatedAt": "2026-06-30", "tags": []}, {"id": "D02", "name": "通过复制 MCP 安装链接，用自然语言安装 MCP（滴答 MCP）", "status": "已做成", "result": "成功", "nature": "一次性", "feasibility": "高", "purpose": "验证 AI 能否替代手动配置，缩短工具接入链路", "analysis": "已经成功跑通，适合沉淀为安装 SOP", "nextAction": "保存安装步骤、环境要求和报错处理", "reviewCycle": "无需复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "D03", "name": "安装滴答 MCP 后，用 AI 对话设置和完成任务", "status": "已做成", "result": "成功", "nature": "持续迭代", "feasibility": "高", "purpose": "把自然语言直接转化为任务管理动作", "analysis": "能力已可用，价值取决于是否融入每天的任务入口", "nextAction": "规定 3 类固定口令：新增、完成、查询", "reviewCycle": "每季度", "nextReview": "2026-09-30", "updatedAt": "2026-06-30", "tags": []}, {"id": "D04", "name": "用自然语言安装 Skill（花叔代表 Skill）", "status": "已做成", "result": "成功", "nature": "一次性", "feasibility": "高", "purpose": "验证 AI 扩展能力能否低门槛安装", "analysis": "已跑通，可复用于其他 Skill", "nextAction": "整理 Skill 安装检查清单", "reviewCycle": "无需复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "D05", "name": "访问 GitHub 并输出热门项目排行", "status": "已做成", "result": "成功", "nature": "周期执行", "feasibility": "高", "purpose": "不用主动搜索也能持续发现热门技术项目", "analysis": "查询本身成熟，适合做成周报或主题榜单", "nextAction": "确定每周一次的榜单口径", "reviewCycle": "每月", "nextReview": "2026-07-31", "updatedAt": "2026-06-30", "tags": []}, {"id": "D06", "name": "安装飞书 CLI，让 AI 生成内容、创建飞书文档并发送给联系人", "status": "已做成", "result": "成功", "nature": "持续迭代", "feasibility": "高", "purpose": "打通内容生成—文档创建—发送的完整工作流", "analysis": "已具备生产力价值，后续可扩展模板与权限控制", "nextAction": "沉淀常用文档模板和收件人规则", "reviewCycle": "每季度", "nextReview": "2026-09-30", "updatedAt": "2026-06-30", "tags": []}, {"id": "D07", "name": "通过 AI 用自然语言下载最合适、最新的 App", "status": "已做成", "result": "成功", "nature": "一次性", "feasibility": "高", "purpose": "降低找官网、辨版本、安装软件的操作成本", "analysis": "单次任务可行，需继续注意下载源和系统兼容性", "nextAction": "保留可信来源与安装校验步骤", "reviewCycle": "无需复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "D08", "name": "用 AI 生成个人简历网站并部署成真实可访问网页", "status": "已做成", "result": "成功", "nature": "持续迭代", "feasibility": "高", "purpose": "把简历变成可展示、可更新、可投递的在线资产", "analysis": "基础版本已完成，后续价值来自持续更新与岗位适配", "nextAction": "建立内容更新与版本命名规则", "reviewCycle": "每季度", "nextReview": "2026-09-30", "updatedAt": "2026-06-30", "tags": []}, {"id": "D09", "name": "通过对话检查科学联网问题并修复", "status": "已做成", "result": "成功", "nature": "一次性", "feasibility": "中", "purpose": "把网络排障变成可解释、可执行的对话流程", "analysis": "单次已解决，但网络环境变化大，需保留诊断记录", "nextAction": "保存故障现象、原因、修复命令", "reviewCycle": "无需复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "D10", "name": "通过 AI 清理本地磁盘空间", "status": "已做成", "result": "成功", "nature": "周期执行", "feasibility": "高", "purpose": "减少手动查找大文件和缓存的成本", "analysis": "适合按月执行，但必须保留删除确认机制", "nextAction": "建立“扫描—确认—删除—复查”流程", "reviewCycle": "每月", "nextReview": "2026-07-31", "updatedAt": "2026-06-30", "tags": []}, {"id": "D11", "name": "通过对话检测电脑运行情况和性能", "status": "已做成", "result": "成功", "nature": "周期执行", "feasibility": "高", "purpose": "快速判断电脑是否异常、瓶颈在哪里", "analysis": "适合做成季度或异常时检查清单", "nextAction": "记录基准值，便于前后对比", "reviewCycle": "每月", "nextReview": "2026-07-31", "updatedAt": "2026-06-30", "tags": []}, {"id": "D12", "name": "让 AI 帮助迁移设备数据", "status": "已做成", "result": "成功", "nature": "一次性", "feasibility": "中", "purpose": "降低换机与跨设备迁移的复杂度和遗漏风险", "analysis": "可行但强依赖具体设备、权限与备份状态", "nextAction": "沉淀迁移前后核对清单", "reviewCycle": "无需复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "D13", "name": "让 AI 通过镜像手机发送阿里钉、微信消息", "status": "已做成", "result": "成功", "nature": "持续迭代", "feasibility": "中", "purpose": "让电脑端 AI 延伸到手机应用操作", "analysis": "已验证但依赖界面稳定性，误触风险较高", "nextAction": "限定联系人、消息类型与发送前确认", "reviewCycle": "每季度", "nextReview": "2026-09-30", "updatedAt": "2026-06-30", "tags": []}, {"id": "D14", "name": "让 AI 推荐并直接播放歌曲", "status": "已做成", "result": "成功", "nature": "持续迭代", "feasibility": "高", "purpose": "把情绪、场景与音乐播放连接起来", "analysis": "能力成熟，后续可积累个人偏好与歌单规则", "nextAction": "建立场景歌单标签", "reviewCycle": "每季度", "nextReview": "2026-09-30", "updatedAt": "2026-06-30", "tags": []}, {"id": "D15", "name": "用 AI 执行微博超话自动签到定时任务", "status": "已做成", "result": "成功", "nature": "周期执行", "feasibility": "中", "purpose": "减少重复性打卡操作", "analysis": "可行但可能受平台规则、登录状态与风控影响", "nextAction": "增加失败提醒和人工兜底", "reviewCycle": "每月", "nextReview": "2026-07-31", "updatedAt": "2026-06-30", "tags": []}, {"id": "D16", "name": "用 AI 通过镜像方式发微博", "status": "已做成", "result": "成功", "nature": "持续迭代", "feasibility": "中", "purpose": "降低发布内容的操作链路", "analysis": "可用但需保留发布前审核，避免误发", "nextAction": "固定草稿—预览—确认—发布流程", "reviewCycle": "每季度", "nextReview": "2026-09-30", "updatedAt": "2026-06-30", "tags": []}, {"id": "D17", "name": "用 AI 在 iCost 进行记账", "status": "已做成", "result": "成功", "nature": "持续迭代", "feasibility": "中", "purpose": "降低记账摩擦，让消费数据持续积累", "analysis": "可用性取决于录入准确率与账户分类稳定性", "nextAction": "建立分类词典和月底对账", "reviewCycle": "每季度", "nextReview": "2026-09-30", "updatedAt": "2026-06-30", "tags": []}, {"id": "D18", "name": "通过 Computer Use 读取 iCost 消费", "status": "已做成", "result": "成功", "nature": "周期执行", "feasibility": "中", "purpose": "让已有消费数据可被 AI 查询和分析", "analysis": "可行但界面读取稳定性一般，适合定期导出核验", "nextAction": "每月生成一次消费汇总并抽查", "reviewCycle": "每月", "nextReview": "2026-07-31", "updatedAt": "2026-06-30", "tags": []}, {"id": "D19", "name": "通过 AI 读取手机屏幕使用时间", "status": "已做成", "result": "成功", "nature": "周期执行", "feasibility": "高", "purpose": "把注意力使用情况变成可复盘的数据", "analysis": "数据易获取，价值在于持续比较而非单次查看", "nextAction": "每周记录总时长与前三应用", "reviewCycle": "每月", "nextReview": "2026-07-31", "updatedAt": "2026-06-30", "tags": []}, {"id": "D20", "name": "让 AI 读取周报中的消费、健康数据并随时查询", "status": "已做成", "result": "成功", "nature": "周期执行", "feasibility": "高", "purpose": "形成可检索的个人生活数据档案", "analysis": "已具备闭环雏形，需统一数据格式和时间口径", "nextAction": "固定周报字段并增加趋势对比", "reviewCycle": "每月", "nextReview": "2026-07-31", "updatedAt": "2026-06-30", "tags": []}, {"id": "D21", "name": "通过手机连接电脑 Codex，直接发布操作指令", "status": "已做成", "result": "成功", "nature": "持续迭代", "feasibility": "中", "purpose": "实现跨设备远程调用电脑上的 AI 能力", "analysis": "路径已验证，但权限、安全和断线恢复需完善", "nextAction": "限定可执行目录与高风险动作", "reviewCycle": "每季度", "nextReview": "2026-09-30", "updatedAt": "2026-06-30", "tags": []}, {"id": "D22", "name": "通过女娲 Skill 把课程转成老师 Skill（黄执中老师）", "status": "已做成", "result": "成功", "nature": "持续迭代", "feasibility": "中", "purpose": "把静态课程转化为可持续提问的个性化老师", "analysis": "概念成立，效果取决于课程材料完整度与忠实度", "nextAction": "增加引用来源、边界说明和阶段测验", "reviewCycle": "每季度", "nextReview": "2026-09-30", "updatedAt": "2026-06-30", "tags": []}, {"id": "D23", "name": "让 AI 读取健康数据并自动积累、生成趋势图", "status": "已做成", "result": "成功", "nature": "周期执行", "feasibility": "中", "purpose": "持续观察体重、体脂、运动、睡眠等变化", "analysis": "技术可行，但需解决数据源稳定、隐私与异常解释", "nextAction": "固定每周同步和月度趋势报告", "reviewCycle": "每月", "nextReview": "2026-07-31", "updatedAt": "2026-06-30", "tags": []}, {"id": "D24", "name": "让 AI 爬取网站信息并以表格输出，辅助真实工作", "status": "已做成", "result": "成功", "nature": "持续迭代", "feasibility": "高", "purpose": "把重复搜集整理转成高效率的数据工作流", "analysis": "已证明有真实工作价值，后续应模板化字段与校验", "nextAction": "保存通用爬取提示词和表格结构", "reviewCycle": "每季度", "nextReview": "2026-09-30", "updatedAt": "2026-06-30", "tags": []}, {"id": "D25", "name": "用 AI 做自我任务复盘机制", "status": "已做成", "result": "成功", "nature": "周期执行", "feasibility": "高", "purpose": "让完成情况、阻碍与下一步形成闭环", "analysis": "机制适合长期使用，关键是降低填写成本", "nextAction": "固定周复盘时间与 5 个核心问题", "reviewCycle": "每月", "nextReview": "2026-07-31", "updatedAt": "2026-06-30", "tags": []}, {"id": "D26", "name": "打通 WeChatBot 并结合定时任务推送 AI 行业日报", "status": "已做成", "result": "成功", "nature": "周期执行", "feasibility": "中", "purpose": "自动接收筛选后的 AI 行业信息", "analysis": "已跑通但依赖消息渠道、信息源与定时任务稳定性", "nextAction": "增加来源分级、去重和失败提醒", "reviewCycle": "每月", "nextReview": "2026-07-31", "updatedAt": "2026-06-30", "tags": []}, {"id": "D27", "name": "用 AI 制作英语播客：写脚本、录音、剪辑", "status": "已做成", "result": "成功", "nature": "一次性", "feasibility": "高", "purpose": "验证 AI 能否完成一条完整音频内容生产链", "analysis": "单次已完成，后续可升级为可重复栏目", "nextAction": "保存脚本、声音和剪辑参数", "reviewCycle": "无需复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "D28", "name": "用 Notebook 将一本书拆解成播客、PPT、思维导图", "status": "已做成", "result": "成功", "nature": "一次性", "feasibility": "高", "purpose": "把长内容转成多种学习媒介", "analysis": "单本书已验证，可复制到其他书，但需防止过度摘要", "nextAction": "保留原文引用与核心问题清单", "reviewCycle": "无需复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "D29", "name": "用 Image 2 生成图片并发布小红书", "status": "已做成", "result": "成功", "nature": "一次性", "feasibility": "高", "purpose": "验证 AI 图片从生成到社交发布的完整链路", "analysis": "流程可行，后续重点是内容定位与账号一致性", "nextAction": "记录高表现图片的提示词和发布数据", "reviewCycle": "无需复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "W01", "name": "跨能量状态对话系统", "status": "正在做", "result": "进行中", "nature": "持续迭代", "feasibility": "中", "purpose": "在低能量时提供支持，在高能量时把精力转成行动", "analysis": "核心逻辑清楚，但需要持续输入真实状态和验证干预是否有效", "nextAction": "先定义低、中、高三种状态的触发问题与回应规则", "reviewCycle": "每周", "nextReview": "2026-07-07", "updatedAt": "2026-06-30", "tags": []}, {"id": "W02", "name": "哲学家圆桌讨论会", "status": "正在做", "result": "进行中", "nature": "持续迭代", "feasibility": "中", "purpose": "让同一个现实问题获得不同哲学传统的解释与安慰", "analysis": "原型可做，但信任机制、出处和思想忠实度决定成败", "nextAction": "先补“原话/推演/分歧/局限”四类标识", "reviewCycle": "每周", "nextReview": "2026-07-07", "updatedAt": "2026-06-30", "tags": []}, {"id": "W03", "name": "个人网站整合性界面", "status": "正在做", "result": "进行中", "nature": "持续迭代", "feasibility": "高", "purpose": "把分散的个人 HTML 工具整合为统一入口", "analysis": "技术难度不高，主要挑战是信息架构和长期维护", "nextAction": "先确定一级分类和统一卡片规范", "reviewCycle": "每周", "nextReview": "2026-07-07", "updatedAt": "2026-06-30", "tags": []}, {"id": "W04", "name": "精致生活管家：物品、收纳地与购物缺口", "status": "正在做", "result": "进行中", "nature": "持续迭代", "feasibility": "高", "purpose": "同时管理已有物品、放置位置和待补充清单", "analysis": "适合从一个房间或一个品类开始，逐步扩展", "nextAction": "先录入 20 个高频物品并验证查询方式", "reviewCycle": "每周", "nextReview": "2026-07-07", "updatedAt": "2026-06-30", "tags": []}, {"id": "W05", "name": "肌肉锻炼教程指向应用", "status": "正在做", "result": "进行中", "nature": "持续迭代", "feasibility": "高", "purpose": "把肌肉、动作、器械和视频教程连接起来，降低健身房恐惧", "analysis": "内容结构明确，关键是教程质量、动作安全和移动端体验", "nextAction": "先完成 8 个主要肌群的最小版本", "reviewCycle": "每周", "nextReview": "2026-07-07", "updatedAt": "2026-06-30", "tags": []}, {"id": "W06", "name": "个人烘焙作品复用 HTML", "status": "正在做", "result": "进行中", "nature": "持续迭代", "feasibility": "高", "purpose": "让做过的烘焙下次能直接复做，不再重新查资料", "analysis": "已有真实作品和需求，成功概率高", "nextAction": "统一配方字段并先补齐最常复做的 5 个作品", "reviewCycle": "每周", "nextReview": "2026-07-07", "updatedAt": "2026-06-30", "tags": []}, {"id": "W07", "name": "做饭与买菜决策系统", "status": "正在做", "result": "进行中", "nature": "持续迭代", "feasibility": "高", "purpose": "根据一人食、现有食材和搭配规则快速决定吃什么", "analysis": "规则已较清楚，适合先做本地数据版", "nextAction": "先录入会做的菜并验证一周不重复推荐", "reviewCycle": "每周", "nextReview": "2026-07-07", "updatedAt": "2026-06-30", "tags": []}, {"id": "W08", "name": "烘焙配方记录操作系统", "status": "正在做", "result": "进行中", "nature": "持续迭代", "feasibility": "高", "purpose": "把配方、材料、成本、步骤与复做记录沉淀为系统", "analysis": "与“烘焙作品复用 HTML”高度重叠，合并后更聚焦", "nextAction": "将两个项目合并为一个版本路线图", "reviewCycle": "每周", "nextReview": "2026-07-07", "updatedAt": "2026-06-30", "tags": []}, {"id": "I01", "name": "跑通 AI 边读书边讨论的场景", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "高", "purpose": "把阅读从单向输入变成即时提问、关联和理解", "analysis": "工具能力成熟，难点是减少打断并保留阅读进度", "nextAction": "选一本正在读的书，先测试一章", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I02", "name": "AI 自动周小结、月小结，并与年计划对比反馈", "status": "还没开始", "result": "未开始", "nature": "周期执行", "feasibility": "高", "purpose": "让日常行动持续回到年度目标", "analysis": "数据结构和自动总结都可实现，关键是稳定输入", "nextAction": "先确定周报、月报和年计划的统一字段", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I03", "name": "让 AI 记录做过的事情，持续追踪并校正计划", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "高", "purpose": "形成个人行动史，减少遗忘和反复从零开始", "analysis": "可行性高，需处理记录入口和信息去重", "nextAction": "先建立“已做—结果—下一步”三字段", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I04", "name": "AI 求职系统：简历分析、多岗位版本、话术、网站、调研与面试支持", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "中", "purpose": "把求职从零散任务变成端到端工作流", "analysis": "技术上可行，但信息量大，需按岗位逐步搭建", "nextAction": "先用一个目标岗位跑通完整闭环", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I05", "name": "学习 Obsidian、迁移知识库并打通 Codex", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "中", "purpose": "建立长期可控、可检索、可被 AI 使用的知识库", "analysis": "可行但迁移和结构设计容易过度复杂", "nextAction": "先迁移一个主题，不要一次搬完", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I06", "name": "跟随 AI 指引搭建个人 VPN，解决稳定网络", "status": "还没开始", "result": "未开始", "nature": "一次性", "feasibility": "中", "purpose": "获得更稳定、可控的网络环境", "analysis": "需要服务器、协议、安全配置和持续维护知识", "nextAction": "先明确用途、设备和预算，再选技术路线", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I07", "name": "AI 定风格、整理穿搭并按天气决定穿什么", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "中", "purpose": "把衣柜、天气、体感和风格转成每日穿衣建议", "analysis": "可行但需要真实衣柜数据、照片和长期体感反馈", "nextAction": "先建立 20 套真实穿搭卡", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I08", "name": "AI 持续跟进减肥，实时记录饮食并给出对抗策略", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "中", "purpose": "把体重管理从意志力问题变成数据和策略支持", "analysis": "可行但需避免过度记录，健康建议应保留专业边界", "nextAction": "先做一周低摩擦饮食记录", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I09", "name": "用 AI 创建个人影视库", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "高", "purpose": "沉淀看过、想看、感受和关联知识", "analysis": "结构清晰，适合本地 HTML 或数据库起步", "nextAction": "先录入最近看过的 20 部", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I10", "name": "用 AI 创建个人 Book Shelf", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "高", "purpose": "管理拥有、读过、在读和想读的书", "analysis": "实现简单，价值来自持续记录和关联笔记", "nextAction": "先确定四种书架状态", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I11", "name": "让 AI 生成教程，并设计机制驱动自己学习", "status": "还没开始", "result": "未开始", "nature": "周期执行", "feasibility": "中", "purpose": "把“知道要学”转成持续课程、练习和复习", "analysis": "生成教程容易，真正难点是进度、反馈和复习闭环", "nextAction": "选一个小主题跑通 7 天课程", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I12", "name": "读取大促日期", "status": "还没开始", "result": "未开始", "nature": "周期执行", "feasibility": "高", "purpose": "提前掌握购物节点，避免临时决策", "analysis": "公开信息易获取，适合做成年度日历提醒", "nextAction": "建立关注平台与品类清单", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I13", "name": "读取主播上架商品与价格机制，判断是否下单", "status": "还没开始", "result": "未开始", "nature": "周期执行", "feasibility": "中", "purpose": "减少直播购物中的信息不对称和冲动消费", "analysis": "需要稳定抓取、历史价和规则识别，平台变化较快", "nextAction": "先只跟踪一个主播和一个品类", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I14", "name": "家中库存到期自动提醒、下单、归置", "status": "还没开始", "result": "未开始", "nature": "周期执行", "feasibility": "中", "purpose": "降低过期、断货和重复购买", "analysis": "提醒易做，自动下单和实物归置需要更多设备与确认", "nextAction": "先做库存和到期提醒，不直接自动购买", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I15", "name": "用 AI 做朋友圈年度总结", "status": "还没开始", "result": "未开始", "nature": "周期执行", "feasibility": "高", "purpose": "从一年社交记录中回顾生活主题与变化", "analysis": "按年执行即可，数据导出和隐私是主要前提", "nextAction": "先定义希望得到的 5 类年度洞察", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I16", "name": "沉淀动态生活用品系统", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "高", "purpose": "管理用品、使用状态、补货与替代选择", "analysis": "与精致生活管家可合并，数据结构相近", "nextAction": "先合并到生活管家的“消耗品”模块", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I17", "name": "用 AI 生成旅游攻略规划应用", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "高", "purpose": "把偏好、预算、路线、预订与行程集中管理", "analysis": "技术可行，需接入实时天气、交通和营业信息", "nextAction": "先做一次真实短途行程原型", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I18", "name": "与 AI 随时谈心，获得谈恋爱般的互动感", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "中", "purpose": "获得稳定陪伴、情绪表达和回应体验", "analysis": "互动可实现，但应避免替代现实支持和过度依赖", "nextAction": "先定义希望的边界、语气和禁区", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I19", "name": "蒸馏 FlowUs 中的想法和技能", "status": "还没开始", "result": "未开始", "nature": "周期执行", "feasibility": "中", "purpose": "把分散笔记提炼成主题、能力和可行动成果", "analysis": "取决于导出权限、内容质量和分类方法", "nextAction": "先导出一个主题做样本", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I20", "name": "霍格沃茨 AI 学院：AI 能做什么、怎么做、LV0-LV1 能力地图", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "中", "purpose": "把抽象 AI 能力变成有等级、有任务的学习体系", "analysis": "概念有吸引力，但课程范围大，需先做最小等级", "nextAction": "先定义 LV0 的 5 个通关任务", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I21", "name": "个人梦境记录系统", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "高", "purpose": "记录梦境、情绪、人物和重复主题", "analysis": "实现容易，关键是醒来后快速录入", "nextAction": "设计 30 秒语音录入模板", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I22", "name": "让 AI 评估 Todo 优先级", "status": "还没开始", "result": "未开始", "nature": "周期执行", "feasibility": "高", "purpose": "减少任务堆积和选择困难", "analysis": "规则可解释、技术简单，适合每天或每周运行", "nextAction": "先确定重要性、紧急性、能量、依赖四项评分", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I23", "name": "RAG 知识蒸馏：装修、营养、穿搭、美妆、绘画", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "中", "purpose": "把可信资料变成可追问的个人领域知识库", "analysis": "技术可行，但资料版权、质量和更新成本较高", "nextAction": "先选一个领域和 10 份高质量资料", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I24", "name": "研究如何把复杂问题用浅显语言教给别人", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "高", "purpose": "形成自己的解释力和教学方法", "analysis": "可以通过案例库和反馈快速迭代", "nextAction": "先选 3 个熟悉概念做不同难度解释", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I25", "name": "根据付费教程目录推测内容并把我教会", "status": "还没开始", "result": "未开始", "nature": "一次性", "feasibility": "中", "purpose": "在不购买前理解课程结构并补足知识", "analysis": "只能基于公开目录重建知识框架，不能复制未公开内容", "nextAction": "选一个公开目录，先验证一章", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I26", "name": "结合技能、熟练度和兴趣，推荐可以用 AI 做什么", "status": "还没开始", "result": "未开始", "nature": "周期执行", "feasibility": "高", "purpose": "让新项目与真实能力、兴趣和成长方向匹配", "analysis": "可行性高，需维护动态技能画像", "nextAction": "先建立技能点及 L0-L5 等级表", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I27", "name": "让 AI 审查百炼客户运营端并提出建议", "status": "还没开始", "result": "未开始", "nature": "一次性", "feasibility": "高", "purpose": "用结构化视角发现体验和运营问题", "analysis": "只要有页面、流程和目标即可开展", "nextAction": "先选一条核心用户路径做启发式审查", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I28", "name": "让 AI 作为领导安排周一至周五工作并自动生成日报", "status": "还没开始", "result": "未开始", "nature": "周期执行", "feasibility": "中", "purpose": "减少工作规划和汇报整理成本", "analysis": "可行但必须基于真实职责、优先级和临时变化", "nextAction": "先用一周任务样本测试", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I29", "name": "把读书软件想法交给 Codex，观察生成结果", "status": "还没开始", "result": "未开始", "nature": "一次性", "feasibility": "高", "purpose": "验证产品想法到原型的转化能力", "analysis": "范围可控，适合快速实验", "nextAction": "整理需求后只生成最小可用版本", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I30", "name": "让 Codex 判断想学技能的选择和优先级", "status": "还没开始", "result": "未开始", "nature": "周期执行", "feasibility": "高", "purpose": "减少学习方向过多带来的摇摆", "analysis": "可通过目标、收益、前置知识和时间评分", "nextAction": "先列 5 个技能做一次排序", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I31", "name": "把有价值的视频交给 AI 快速分类、执行或沉淀", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "中", "purpose": "把视频收藏从囤积变成行动和知识", "analysis": "视频解析可行，难点是稳定获取字幕和行动闭环", "nextAction": "先处理 10 个已收藏视频", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I32", "name": "省钱：通过技术获取原本付费的资源", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "低", "purpose": "降低学习与工具成本", "analysis": "仅适合寻找合法公开、试用、开源或替代资源；绕过付费和版权不可取", "nextAction": "改写为“公开资源与平价替代检索系统”", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I33", "name": "把考公、历史课知识点对应到影视剧", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "高", "purpose": "用剧情和人物帮助记忆抽象知识", "analysis": "可行性高，但必须区分历史事实与艺术改编", "nextAction": "先做一个朝代或一门模块", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I34", "name": "让 AI 把生成数据填写进飞书多维表（飞书 CLI）", "status": "还没开始", "result": "未开始", "nature": "周期执行", "feasibility": "高", "purpose": "减少重复复制粘贴和结构化录入", "analysis": "已有飞书 CLI 基础，容易跑通", "nextAction": "先定义一张目标表和字段映射", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I35", "name": "“土壤—群—客户”连接系统", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "中", "purpose": "把生活经历、技能和兴趣转成可连接客户的内容资产", "analysis": "更像个人商业方法论，需要明确受众和转化路径", "nextAction": "先画出内容—社群—需求—服务链路", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I36", "name": "做一个朋友来访时附近好玩、好吃的程序", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "高", "purpose": "快速生成适合不同朋友的本地接待方案", "analysis": "技术不难，但需要实时地点、营业和偏好数据", "nextAction": "先以家附近 3 公里做原型", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I37", "name": "专为某个领域入行学习的完全简易教程", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "高", "purpose": "降低新手进入陌生领域的门槛", "analysis": "适合模块化制作，关键是范围边界和真实任务", "nextAction": "先选一个领域做 7 步入门路线", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I38", "name": "做一个餐厅或烹饪小游戏", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "中", "purpose": "用游戏化降低学习做饭的阻力并增加趣味", "analysis": "原型可做，但玩法和持续吸引力需要反复测试", "nextAction": "先做一个 5 分钟可完成的核心循环", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I39", "name": "帮爱画画的孩子做一个绘本", "status": "还没开始", "result": "未开始", "nature": "一次性", "feasibility": "高", "purpose": "把孩子的画和想象转成完整故事作品", "analysis": "技术路径成熟，注意保留孩子的原始表达", "nextAction": "先用 6 张画做一本短绘本", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I40", "name": "为 Coding 用户做 AI 想法记录载体", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "高", "purpose": "把灵感、需求、技术方案和进度放在一个地方", "analysis": "需求明确，适合从轻量本地工具开始", "nextAction": "先设计“想法—价值—难度—下一步”四字段", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I41", "name": "制作 AI 影视广告，体现生活和工作方式变化", "status": "还没开始", "result": "未开始", "nature": "一次性", "feasibility": "中", "purpose": "用高完成度影像表达 AI 带来的变化", "analysis": "需要脚本、分镜、角色一致性和后期，工作量较大", "nextAction": "先做 30 秒单场景广告", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I42", "name": "AI 掌握礼品清单、关系定级、价格范围并从库存选礼物", "status": "还没开始", "result": "未开始", "nature": "周期执行", "feasibility": "高", "purpose": "降低送礼决策压力，避免重复购买和忘记库存", "analysis": "规则清楚，适合与联系人和库存系统连接", "nextAction": "先录入 10 位关系和现有礼品", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I43", "name": "调教 AI 按每个人的语言阅读习惯输出文档", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "中", "purpose": "让同一内容适配不同读者的表达偏好", "analysis": "可通过样本文本和反馈学习，但需避免过拟合与隐私问题", "nextAction": "为一个人收集 5 篇样本做测试", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I44", "name": "自己搭建智能体并研究 AI 原理", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "中", "purpose": "从会用工具进阶到理解和构建 AI 系统", "analysis": "长期可行，但范围很大，需要项目驱动分阶段", "nextAction": "先从一个有真实用途的简单智能体开始", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I45", "name": "修复体力 Bug、智力 Bug、性格 Bug", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "中", "purpose": "把长期困扰转成可观察、可实验、可改善的问题", "analysis": "概念有价值但过于宽泛，需要拆成行为和指标", "nextAction": "先分别定义一个最影响生活的具体 Bug", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I46", "name": "把 AI 实现项目按 LV0-LV3 难度排名", "status": "还没开始", "result": "未开始", "nature": "周期执行", "feasibility": "高", "purpose": "看清能力成长路径并选择合适挑战", "analysis": "现有项目清单充足，规则可解释", "nextAction": "用本清单先完成第一版分级", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I47", "name": "展示多个任务线程的台阶、里程碑与终点", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "高", "purpose": "避免并行项目失控，清楚每条线走到哪里", "analysis": "信息架构清楚即可实现，适合与本项目总览台连接", "nextAction": "先给 3 个正在做项目拆里程碑", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I48", "name": "新领域术语学习、反复强化并形成知识导图", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "中", "purpose": "减少英文缩写和专业词汇造成的理解阻碍", "analysis": "可行但需要间隔复习、关系图和上下文例句", "nextAction": "先从当前 AI 学习中的 20 个词开始", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I49", "name": "研究高传播内容原因并复刻制作", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "中", "purpose": "把爆款从运气问题转成可分析的内容结构", "analysis": "分析可做，但传播受平台、时机和账号基础影响", "nextAction": "先分析同一赛道 20 条高表现内容", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I50", "name": "用 AI 做家装设计，通过 ComfyUI 拼合元素看效果", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "中", "purpose": "在装修前快速验证风格和家具组合", "analysis": "概念可行，但空间尺度和真实落地需要人工校验", "nextAction": "先用一个房间和固定视角测试", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I51", "name": "让 AI 分析搞钱想法", "status": "还没开始", "result": "未开始", "nature": "周期执行", "feasibility": "高", "purpose": "从需求、资源、成本和验证路径筛选商业机会", "analysis": "框架分析容易，关键是用真实市场反馈验证", "nextAction": "先提交 3 个想法做同表比较", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I52", "name": "让 Claude 实现 Codex 做到过的事情", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "中", "purpose": "比较不同 AI 编程代理的能力和使用边界", "analysis": "可以逐项复现，但环境和工具权限不同会影响结果", "nextAction": "从 3 个低风险已成功任务开始", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I53", "name": "用 AI 修社交媒体照片", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "高", "purpose": "提高图片完成度并统一个人视觉风格", "analysis": "现有图像编辑能力成熟，需建立固定审美模板", "nextAction": "挑 10 张旧图建立前后对照", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I54", "name": "用 Codex 剪辑视频", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "中", "purpose": "把脚本、素材整理和剪辑自动化", "analysis": "基础剪辑可行，复杂节奏和审美仍需人工把关", "nextAction": "先完成一条 30 秒视频", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I55", "name": "做治愈哲学插画、漫画", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "中", "purpose": "把哲学观点转成易感受、易传播的视觉内容", "analysis": "可行，但需解决观点准确、角色一致和系列风格", "nextAction": "先完成一个 4 格系列", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I56", "name": "内聚系统：接续已投入的事情，维持状态，不反复重启", "status": "还没开始", "result": "未开始", "nature": "周期执行", "feasibility": "高", "purpose": "把旧线索重新接上，沉淀出新结果", "analysis": "理念明确，最适合做成每周回收机制", "nextAction": "每周只选择 1 个旧项目接续", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I57", "name": "做有运镜的产品展示动画", "status": "还没开始", "result": "未开始", "nature": "一次性", "feasibility": "中", "purpose": "更直观地展示产品界面、结构和使用过程", "analysis": "工具可实现，但镜头、节奏和素材准备有门槛", "nextAction": "先用现有一个 HTML 做 15 秒演示", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I58", "name": "支点世界系统：宇宙中相连的记忆房间", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "低", "purpose": "用空间、场景和音乐承载个人独家记忆", "analysis": "创意很强，但 3D、交互、音频和内容制作量大", "nextAction": "先做 2D 可点击房间地图验证体验", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I59", "name": "制作想象中的智能家居图纸", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "中", "purpose": "把穿搭衣橱、移动冰箱、库存机器人等概念可视化", "analysis": "概念图可行，工程落地需硬件和专业设计", "nextAction": "先做一个设备的使用流程与外观图", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I60", "name": "做个人职业优势积累地图", "status": "还没开始", "result": "未开始", "nature": "周期执行", "feasibility": "高", "purpose": "持续记录能力、证据、项目和岗位匹配度", "analysis": "数据来自现有项目，容易启动且对求职有直接价值", "nextAction": "先把已完成项目映射到能力证据", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I61", "name": "汇集新手养猫指南", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "高", "purpose": "把健康、用品、行为和应急知识集中起来", "analysis": "资料多且成熟，关键是来源可信和按阶段组织", "nextAction": "先做到家前 30 天指南", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I62", "name": "输入身材数据生成不露脸数字模特，并搭建穿衣推荐应用", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "中", "purpose": "用真实身材和衣柜历史生成更贴合的穿搭建议", "analysis": "基础可视化可做，真实贴合、隐私和数据量是难点", "nextAction": "先做轮廓级模特和 10 套穿搭记录", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I63", "name": "做“哪里不舒服—看哪科—去哪家医院—距离与停车”工具", "status": "还没开始", "result": "未开始", "nature": "持续迭代", "feasibility": "中", "purpose": "降低就医信息检索和科室选择压力", "analysis": "可做信息辅助，但不能替代诊断，医院信息还需实时更新", "nextAction": "先做一个城市和常见症状导航", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}, {"id": "I64", "name": "让 AI 为家具定制生成图片，帮助与商家沟通", "status": "还没开始", "result": "未开始", "nature": "一次性", "feasibility": "高", "purpose": "把文字需求转成直观尺寸、结构和风格参考", "analysis": "图像生成易实现，关键尺寸仍需标注和人工确认", "nextAction": "先用一件家具完成需求图、尺寸图、效果图", "reviewCycle": "灵感池月度复盘", "nextReview": "", "updatedAt": "2026-06-30", "tags": []}];
+const KEY = "ai_project_portfolio_kanban_v2";
+const columnFilters = {
+  done: { nature:"", result:"" },
+  doing: { nature:"", result:"" },
+  idea: { nature:"", result:"" }
+};
+let data = (()=>{
+  try {
+    const local = JSON.parse(localStorage.getItem(KEY));
+    return Array.isArray(local) && local.length ? local : structuredClone(SEED);
+  } catch(e) {
+    return structuredClone(SEED);
+  }
+})();
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+const today = () => new Date().toISOString().slice(0,10);
+const save = () => localStorage.setItem(KEY, JSON.stringify(data));
+
+function sortList(arr){
+  const mode = $("#sortMode").value;
+  const feasRank = { "高":0, "中":1, "低":2 };
+  const statusRank = { "正在做":0, "还没开始":1, "已做成":2 };
+  return [...arr].sort((a,b)=>{
+    if(mode === "feas") return (feasRank[a.feasibility] ?? 9) - (feasRank[b.feasibility] ?? 9) || a.id.localeCompare(b.id);
+    if(mode === "updated") return String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")) || a.id.localeCompare(b.id);
+    return (statusRank[a.status] - statusRank[b.status]) || (feasRank[a.feasibility] - feasRank[b.feasibility]) || a.id.localeCompare(b.id);
+  });
+}
+
+function filtered(){
+  const q = $("#q").value.trim().toLowerCase();
+  const nature = $("#natureFilter").value;
+  const feas = $("#feasFilter").value;
+  const result = $("#resultFilter").value;
+  return sortList(data.filter(p => {
+    const hay = [p.id,p.name,p.purpose,p.analysis,p.nextAction].join(" ").toLowerCase();
+    return (!q || hay.includes(q)) && (!nature || p.nature===nature) && (!feas || p.feasibility===feas) && (!result || p.result===result);
+  }));
+}
+
+function badgeClass(feas){
+  return feas === "高" ? "high" : feas === "中" ? "medium" : "low";
+}
+
+function cardHTML(p){
+  return `
+  <article class="card">
+    <div class="code">${esc(p.id)} · 更新 ${esc(p.updatedAt || "")}</div>
+    <h4>${esc(p.name)}</h4>
+    <div class="badges">
+      <span class="badge">${esc(p.result)}</span>
+      <span class="badge nature">${esc(p.nature)}</span>
+      <span class="badge ${badgeClass(p.feasibility)}">可行性 ${esc(p.feasibility)}</span>
+    </div>
+    <div class="meta">
+      <b>目的</b><div>${esc(p.purpose) || "—"}</div>
+      <b>分析</b><div>${esc(p.analysis) || "—"}</div>
+    </div>
+    <div class="next"><strong>下一步：</strong>${esc(p.nextAction) || "尚未填写"}</div>
+    <div class="foot">
+      <div class="review">${esc(p.reviewCycle || "")}${p.nextReview ? " · " + esc(p.nextReview) : ""}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="mini" data-edit="${esc(p.id)}">编辑</button>
+        ${p.status !== "已做成" ? `<button class="mini" data-done="${esc(p.id)}">完成</button>` : ""}
+        <button class="mini" data-del="${esc(p.id)}">删除</button>
+      </div>
+    </div>
+  </article>`;
+}
+
+function renderStats(){
+  $("#sTotal").textContent = data.length;
+  $("#sDone").textContent = data.filter(x=>x.status==="已做成").length;
+  $("#sDoing").textContent = data.filter(x=>x.status==="正在做").length;
+  $("#sIdea").textContent = data.filter(x=>x.status==="还没开始").length;
+  $("#sReady").textContent = data.filter(x=>x.status==="还没开始" && x.feasibility==="高").length;
+
+  const due = data.filter(x => x.nextReview && x.nextReview <= today());
+  $("#duePanel").style.display = due.length ? "block" : "none";
+  $("#dueList").innerHTML = due.map(x=>`<button class="chip" data-open="${esc(x.id)}">${esc(x.name)} · ${esc(x.nextReview)}</button>`).join("");
+}
+
+function applyColumnFilter(items, colKey){
+  const cf = columnFilters[colKey];
+  return items.filter(x => (!cf.nature || x.nature===cf.nature) && (!cf.result || x.result===cf.result));
+}
+
+function renderKanban(){
+  const arr = filtered();
+  const doneBase = arr.filter(x=>x.status==="已做成");
+  const doingBase = arr.filter(x=>x.status==="正在做");
+  const ideaBase = arr.filter(x=>x.status==="还没开始");
+
+  const done = applyColumnFilter(doneBase, "done");
+  const doing = applyColumnFilter(doingBase, "doing");
+  const idea = applyColumnFilter(ideaBase, "idea");
+
+  $("#doneCount").textContent = done.length;
+  $("#doingCount").textContent = doing.length;
+  $("#ideaCount").textContent = idea.length;
+
+  $("#summaryText").textContent = `当前全局筛选后共 ${arr.length} 个项目；三列中再叠加了各自的单独筛选`;
+  $("#doneCards").innerHTML = done.length ? done.map(cardHTML).join("") : `<div class="empty">当前筛选下没有“已做成”项目</div>`;
+  $("#doingCards").innerHTML = doing.length ? doing.map(cardHTML).join("") : `<div class="empty">当前筛选下没有“正在做”项目</div>`;
+  $("#ideaCards").innerHTML = idea.length ? idea.map(cardHTML).join("") : `<div class="empty">当前筛选下没有“还没开始”项目</div>`;
+}
+
+function render(){
+  renderStats();
+  renderKanban();
+}
+
+function nextId(){
+  const nums = data.map(p => parseInt(String(p.id).replace(/\D/g,""),10) || 0);
+  return "P" + String(Math.max(...nums, 101) + 1).padStart(3,"0");
+}
+
+function openForm(id=""){
+  const p = data.find(x=>x.id===id);
+  $("#formTitle").textContent = p ? "编辑项目" : "录入项目";
+  $("#fid").value = p?.id || "";
+  $("#fname").value = p?.name || "";
+  $("#fstatus").value = p?.status || "还没开始";
+  $("#fresult").value = p?.result || "未开始";
+  $("#fnature").value = p?.nature || "持续迭代";
+  $("#ffeas").value = p?.feasibility || "高";
+  $("#fpurpose").value = p?.purpose || "";
+  $("#fanalysis").value = p?.analysis || "";
+  $("#fnext").value = p?.nextAction || "";
+  $("#fcycle").value = p?.reviewCycle || "灵感池月度复盘";
+  $("#freview").value = p?.nextReview || "";
+  $("#dlg").showModal();
+}
+
+function closeForm(){ $("#dlg").close(); }
+
+$("#addBtn").onclick = ()=>openForm();
+$("#closeDlg").onclick = closeForm;
+$("#cancelBtn").onclick = closeForm;
+$("#fstatus").onchange = ()=> {
+  $("#fresult").value = ({"已做成":"成功","正在做":"进行中","还没开始":"未开始"})[$("#fstatus").value];
+};
+
+$("#form").addEventListener("submit", e => {
+  e.preventDefault();
+  const oldId = $("#fid").value;
+  const obj = {
+    id: oldId || nextId(),
+    name: $("#fname").value.trim(),
+    status: $("#fstatus").value,
+    result: $("#fresult").value,
+    nature: $("#fnature").value,
+    feasibility: $("#ffeas").value,
+    purpose: $("#fpurpose").value.trim(),
+    analysis: $("#fanalysis").value.trim(),
+    nextAction: $("#fnext").value.trim(),
+    reviewCycle: $("#fcycle").value,
+    nextReview: $("#freview").value,
+    updatedAt: today(),
+    tags: []
+  };
+  if(!obj.name) return;
+  const i = data.findIndex(x=>x.id===obj.id);
+  if(i >= 0) data[i] = obj;
+  else data.unshift(obj);
+  save();
+  closeForm();
+  render();
+});
+
+["q","natureFilter","feasFilter","resultFilter","sortMode"].forEach(id=>{
+  $("#"+id).addEventListener(id==="q" ? "input" : "change", renderKanban);
+});
+
+$("#clearBtn").onclick = ()=> {
+  ["q","natureFilter","feasFilter","resultFilter","sortMode"].forEach(id=> {
+    $("#"+id).value = id==="sortMode" ? "default" : "";
+  });
+  Object.keys(columnFilters).forEach(k => {
+    columnFilters[k].nature = "";
+    columnFilters[k].result = "";
+  });
+  document.querySelectorAll(".filter-chip").forEach(chip => {
+    chip.classList.toggle("active", chip.dataset.value === "");
+  });
+  renderKanban();
+};
+
+document.body.addEventListener("click", e => {
+  const edit = e.target.closest("[data-edit]");
+  if(edit) return openForm(edit.dataset.edit);
+
+  const done = e.target.closest("[data-done]");
+  if(done){
+    const p = data.find(x=>x.id===done.dataset.done);
+    if(p){
+      p.status = "已做成";
+      p.result = "成功";
+      p.updatedAt = today();
+      if(p.nature === "一次性"){ p.reviewCycle = "无需复盘"; p.nextReview = ""; }
+      save(); render();
+    }
+    return;
+  }
+
+  const del = e.target.closest("[data-del]");
+  if(del && confirm("确定删除这个项目吗？")){
+    data = data.filter(x=>x.id !== del.dataset.del);
+    save(); render();
+    return;
+  }
+
+  const open = e.target.closest("[data-open]");
+  if(open) openForm(open.dataset.open);
+});
+
+function download(name, content, type){
+  const blob = new Blob([content], {type});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 500);
+}
+
+$("#jsonOut").onclick = ()=>download(`AI项目总览看板_${today()}.json`, JSON.stringify(data, null, 2), "application/json");
+$("#csvOut").onclick = ()=>{
+  const cols = ["id","name","status","result","nature","feasibility","purpose","analysis","nextAction","reviewCycle","nextReview","updatedAt"];
+  const q = v => `"${String(v ?? "").replaceAll('"','""')}"`;
+  const csv = "\ufeff" + [cols.join(","), ...data.map(p=>cols.map(c=>q(p[c])).join(","))].join("\n");
+  download(`AI项目总览看板_${today()}.csv`, csv, "text/csv;charset=utf-8");
+};
+$("#jsonIn").onclick = ()=>$("#fileIn").click();
+$("#fileIn").onchange = async e => {
+  const f = e.target.files[0];
+  if(!f) return;
+  try {
+    const x = JSON.parse(await f.text());
+    if(!Array.isArray(x)) throw new Error("bad");
+    if(confirm(`将导入 ${x.length} 个项目并覆盖当前数据，是否继续？`)){
+      data = x; save(); render();
+    }
+  } catch(err) {
+    alert("导入失败：请确认是本页面导出的 JSON 文件。");
+  }
+  e.target.value = "";
+};
+
+
+document.body.addEventListener("click", e => {
+  const chip = e.target.closest(".filter-chip");
+  if(!chip) return;
+  const col = chip.dataset.col;
+  const type = chip.dataset.type;
+  const val = chip.dataset.value;
+  if(!col || !type) return;
+  columnFilters[col][type] = val;
+  document.querySelectorAll(`.filter-chip[data-col="${col}"][data-type="${type}"]`).forEach(btn => {
+    btn.classList.toggle("active", btn === chip);
+  });
+  renderKanban();
+});
+
+render();
+</script>
+</body>
+</html>

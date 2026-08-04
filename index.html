@@ -145,6 +145,7 @@ dialog::backdrop{background:rgba(20,25,20,.48)}
     <p>这版改成了按时态分列的三栏看板：左边看成果沉淀，中间看正在推进，右边看灵感池。这样更容易把握全局，也更适合持续录入与定期复盘。</p>
     <div class="actions">
       <button class="btn" id="addBtn">＋ 录入新项目</button>
+      <a class="btn alt" href="./portfolio.html">作品档案馆 ↗</a>
       <button class="btn alt" id="jsonOut">导出 JSON</button>
       <button class="btn alt" id="csvOut">导出 CSV</button>
       <button class="btn alt" id="jsonIn">导入 JSON</button>
@@ -770,6 +771,7 @@ $("#form").addEventListener("submit", e => {
     difficultyReason: globalThis.ProjectEnhancements?.difficultyReasonForSave(previous) ?? previous?.difficultyReason ?? "",
     aiAdvice: previous?.aiAdvice || null,
     versions: Array.isArray(previous?.versions) ? previous.versions : [],
+    portfolio: previous?.portfolio || null,
     order: previous?.status === $("#fstatus").value ? previous?.order : null
   };
   if(!obj.name) return;

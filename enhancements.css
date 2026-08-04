@@ -1,0 +1,80 @@
+.col-title-actions{display:flex;align-items:center;gap:10px}
+.ai-sort-btn{color:#fff;background:#263b2f;border-color:#263b2f;box-shadow:0 5px 12px rgba(38,59,47,.16)}
+.ai-sort-btn[disabled]{opacity:.55;cursor:wait}
+.ai-config-btn{display:inline-flex;align-items:center;gap:7px}
+.ai-spark{color:#f2cb7c;font-size:16px;line-height:1}
+
+.card{transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;overflow:hidden}
+.card:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(40,43,37,.09)}
+.card.dragging{opacity:.42;transform:scale(.985);box-shadow:none}
+.card.drop-before{box-shadow:0 -4px 0 #263b2f,0 12px 26px rgba(40,43,37,.09)}
+.card.drop-after{box-shadow:0 4px 0 #263b2f,0 12px 26px rgba(40,43,37,.09)}
+.card-topline{display:flex;align-items:flex-start;gap:8px;margin-bottom:5px}
+.drag-handle{border:0;background:#f0eee8;color:#7f847b;border-radius:8px;width:25px;height:27px;padding:0;line-height:1;cursor:grab;flex:0 0 auto;font-size:15px;letter-spacing:-2px}
+.drag-handle:active{cursor:grabbing}
+.drag-handle[disabled]{cursor:not-allowed;opacity:.38}
+.card-heading{min-width:0;flex:1}
+.card-heading .code{margin-bottom:4px}
+.difficulty-badge{flex:0 0 auto;min-width:44px;text-align:center;padding:6px 8px;border-radius:10px;border:1px solid rgba(36,43,36,.12);font:700 12px Georgia,"Songti SC",serif;background:#ede9dc;color:#31372f}
+.difficulty-badge[data-band="easy"]{background:#e8f4eb;color:#2f724d}
+.difficulty-badge[data-band="medium"]{background:#fff0d9;color:#925d18}
+.difficulty-badge[data-band="hard"]{background:#f6e2dc;color:#9b4737}
+.difficulty-reason{margin:-3px 0 9px 33px;color:var(--muted);font-size:11px;line-height:1.5}
+.version-peek{display:flex;align-items:center;gap:8px;margin-top:10px;padding:8px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.version-peek img{width:48px;height:38px;object-fit:cover;border-radius:8px;background:#eee}
+.version-peek span{font-size:11px;color:var(--muted);line-height:1.45}
+.card-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.mini.icon-mini{min-width:30px;padding:6px 7px}
+.mini.ai-mini{background:#263b2f;color:#fff;border-color:#263b2f}
+.drag-note{display:inline-flex;gap:6px;align-items:center;color:var(--muted);font-size:11px}
+
+.difficulty-field{grid-column:1/-1}
+.difficulty-control{display:grid;grid-template-columns:120px auto;gap:8px;align-items:center}
+.field-hint{color:var(--muted);font-size:11px;line-height:1.55;margin-top:5px}
+.modal-kicker{font-size:10px;letter-spacing:.17em;color:var(--muted);margin-bottom:4px}
+.ai-privacy-note{padding:13px 14px;background:#f2efe7;border:1px solid var(--line);border-radius:14px;color:var(--muted);font-size:12px;line-height:1.65;margin-bottom:16px}
+.ai-privacy-note strong{color:var(--ink)}
+
+.advice-modal{width:min(780px,calc(100vw - 30px))}
+.advice-project{padding:12px 14px;border-radius:14px;background:#263b2f;color:#fff;font-weight:700;margin-bottom:12px}
+.advice-content{min-height:220px;white-space:pre-wrap;padding:18px;border:1px solid var(--line);border-radius:16px;background:#fbf9f4;line-height:1.8;font-size:14px}
+.advice-content.loading{display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.advice-content.loading:after{content:"";width:18px;height:18px;border:2px solid #d8d5cc;border-top-color:#43614b;border-radius:50%;margin-left:10px;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.versions-modal{width:min(900px,calc(100vw - 30px));max-height:min(860px,calc(100vh - 32px));overflow:auto}
+.version-composer{display:grid;grid-template-columns:180px 1fr;gap:12px;padding:16px;border:1px solid var(--line);border-radius:18px;background:#f7f4ed;margin-bottom:18px}
+.version-composer .full{grid-column:1/-1}
+.version-composer textarea{min-height:86px}
+.file-ctl{padding:8px;background:#fff}
+.image-preview{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap}
+.image-preview:empty{display:none}
+.image-preview img{width:96px;height:72px;object-fit:cover;border-radius:12px;border:1px solid var(--line);background:#fff}
+.version-timeline{display:grid;gap:12px}
+.version-empty{text-align:center;padding:34px 16px;border:1px dashed var(--line);border-radius:16px;color:var(--muted)}
+.version-entry{display:grid;grid-template-columns:110px 1fr;gap:14px;padding:16px;border:1px solid var(--line);border-radius:17px;background:#fffdf8;position:relative}
+.version-date{font:700 15px Georgia,"Songti SC",serif;color:#43614b}
+.version-text{white-space:pre-wrap;line-height:1.7;font-size:13px;padding-right:36px}
+.version-gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}
+.version-gallery a{display:block;border-radius:12px;overflow:hidden;background:#eee;aspect-ratio:4/3}
+.version-gallery img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s ease}
+.version-gallery a:hover img{transform:scale(1.03)}
+.delete-version{position:absolute;right:12px;top:12px;border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 7px;color:#9b4737}
+
+.toast-stack{position:fixed;right:22px;bottom:22px;z-index:9999;display:grid;gap:8px;pointer-events:none}
+.app-toast{max-width:360px;padding:12px 14px;border-radius:13px;background:#263b2f;color:#fff;box-shadow:0 14px 34px rgba(20,25,20,.2);font-size:13px;line-height:1.55;animation:toast-in .22s ease both}
+.app-toast.error{background:#8d3f35}
+@keyframes toast-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+@media(max-width:620px){
+  .col-title{align-items:flex-start}
+  .col-title-actions{align-items:flex-start}
+  .ai-sort-btn{font-size:11px;padding:6px 8px}
+  .difficulty-control{grid-template-columns:1fr}
+  .version-composer{grid-template-columns:1fr}
+  .version-composer .full,.image-preview{grid-column:auto}
+  .version-entry{grid-template-columns:1fr}
+  .version-gallery{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .toast-stack{left:12px;right:12px;bottom:12px}
+  .app-toast{max-width:none}
+}

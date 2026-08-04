@@ -135,6 +135,7 @@ dialog::backdrop{background:rgba(20,25,20,.48)}
   .panel{padding:16px}
 }
 </style>
+<link rel="stylesheet" href="./enhancements.css" />
 </head>
 <body>
 <div class="wrap">
@@ -147,6 +148,7 @@ dialog::backdrop{background:rgba(20,25,20,.48)}
       <button class="btn alt" id="jsonOut">导出 JSON</button>
       <button class="btn alt" id="csvOut">导出 CSV</button>
       <button class="btn alt" id="jsonIn">导入 JSON</button>
+      <button class="btn alt ai-config-btn" id="aiSettingsBtn"><span class="ai-spark">✦</span><span id="aiSettingsLabel">配置 AI 模型</span></button>
       <button class="btn alt sync-btn" id="cloudBtn" data-state="offline"><span class="sync-dot"></span><span id="cloudLabel">配置云同步</span></button>
       <input id="fileIn" type="file" accept=".json" hidden>
     </div>
@@ -191,7 +193,8 @@ dialog::backdrop{background:rgba(20,25,20,.48)}
         <option>暂停</option>
       </select>
       <select class="ctl" id="sortMode">
-        <option value="default">默认排序</option>
+        <option value="manual">手动顺序</option>
+        <option value="default">智能默认排序</option>
         <option value="feas">按可行性</option>
         <option value="updated">按更新时间</option>
       </select>
@@ -310,7 +313,7 @@ dialog::backdrop{background:rgba(20,25,20,.48)}
       <div class="col idea">
         <div class="col-top">
           <div class="col-tag">💡 还没开始</div>
-          <div class="col-title"><h3>灵感池</h3><div class="count" id="ideaCount">0</div></div>
+          <div class="col-title"><h3>灵感池</h3><div class="col-title-actions"><button class="mini ai-sort-btn" type="button" id="aiSortBtn">✦ AI 排序</button><div class="count" id="ideaCount">0</div></div></div>
           <div class="col-desc">不再只是“待办堆积”，而是一个可筛选、可分优先级、可逐步启动的创意池。</div>
           <div class="col-art">
             <div class="icon-bubble">💭</div>
@@ -375,6 +378,15 @@ dialog::backdrop{background:rgba(20,25,20,.48)}
           <option>高</option><option>中</option><option>低</option>
         </select>
       </div>
+      <div class="field difficulty-field"><label>AI 难度等级</label>
+        <div class="difficulty-control">
+          <select class="ctl" id="fdifficulty">
+            <option value="0">LV0</option><option value="1">LV1</option><option value="2">LV2</option><option value="3">LV3</option><option value="4">LV4</option><option value="5">LV5</option><option value="6">LV6</option><option value="7">LV7</option><option value="8">LV8</option><option value="9">LV9</option><option value="10">LV10</option>
+          </select>
+          <button class="mini" type="button" id="estimateDifficultyBtn">✦ AI 评估</button>
+        </div>
+        <div class="field-hint" id="difficultyHint">保存新项目后会自动评估；未配置 AI 时使用本地规则初评。</div>
+      </div>
       <div class="field full"><label>目的</label><textarea class="ctl" id="fpurpose"></textarea></div>
       <div class="field full"><label>可能性分析</label><textarea class="ctl" id="fanalysis"></textarea></div>
       <div class="field full"><label>下一步</label><textarea class="ctl" id="fnext"></textarea></div>
@@ -390,6 +402,59 @@ dialog::backdrop{background:rgba(20,25,20,.48)}
       <button class="btn">保存</button>
     </div>
   </form>
+</dialog>
+
+<dialog id="aiSettingsDlg">
+  <form class="modal" id="aiSettingsForm">
+    <div class="modalTop">
+      <div><div class="modal-kicker">AI WORKBENCH</div><h2>AI 模型设置</h2></div>
+      <button type="button" class="close" id="closeAiSettingsDlg">×</button>
+    </div>
+    <div class="ai-privacy-note"><strong>密钥只保存在当前浏览器。</strong>它不会写入 GitHub 或同步到 Supabase。静态网页会在需要时直接调用你配置的模型，请只在自己的设备上使用。</div>
+    <div class="formgrid">
+      <div class="field full"><label>API 地址（OpenAI-compatible）</label><input class="ctl" id="aiEndpoint" type="url" placeholder="https://api.deepseek.com/v1" required /></div>
+      <div class="field"><label>模型名称</label><input class="ctl" id="aiModel" placeholder="deepseek-chat" required /></div>
+      <div class="field"><label>API Key</label><input class="ctl" id="aiApiKey" type="password" placeholder="sk-..." required autocomplete="off" /></div>
+    </div>
+    <div class="sync-message" id="aiSettingsMessage"></div>
+    <div class="cloud-actions">
+      <button type="button" class="btn ghost" id="disconnectAi">清除 AI 配置</button>
+      <button type="button" class="btn ghost" id="testAiBtn">测试连接</button>
+      <button type="submit" class="btn">保存 AI 配置</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="adviceDlg">
+  <div class="modal advice-modal">
+    <div class="modalTop">
+      <div><div class="modal-kicker">NEXT ACTION MAP</div><h2 id="adviceTitle">操作步骤建议</h2></div>
+      <button type="button" class="close" id="closeAdviceDlg">×</button>
+    </div>
+    <div class="advice-project" id="adviceProject"></div>
+    <div class="advice-content" id="adviceContent"></div>
+    <div class="cloud-actions">
+      <button type="button" class="btn ghost" id="copyAdviceBtn">复制建议</button>
+      <button type="button" class="btn" id="refreshAdviceBtn">✦ 重新生成</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="versionsDlg">
+  <div class="modal versions-modal">
+    <div class="modalTop">
+      <div><div class="modal-kicker">BUILD JOURNAL</div><h2 id="versionsTitle">版本记录</h2></div>
+      <button type="button" class="close" id="closeVersionsDlg">×</button>
+    </div>
+    <div class="version-composer">
+      <div class="field"><label>实现日期</label><input class="ctl" id="versionDate" type="date" /></div>
+      <div class="field full"><label>这个版本实现了什么</label><textarea class="ctl" id="versionDescription" placeholder="记录功能变化、解决的问题、下一步想法…"></textarea></div>
+      <div class="field full"><label>图片（最多 3 张，页面会自动压缩）</label><input class="ctl file-ctl" id="versionImages" type="file" accept="image/*" multiple /></div>
+      <div class="image-preview" id="versionImagePreview"></div>
+      <button type="button" class="btn" id="saveVersionBtn">保存版本记录</button>
+    </div>
+    <div class="version-timeline" id="versionTimeline"></div>
+  </div>
 </dialog>
 
 <dialog id="cloudDlg">
@@ -686,6 +751,7 @@ $("#fstatus").onchange = ()=> {
 $("#form").addEventListener("submit", e => {
   e.preventDefault();
   const oldId = $("#fid").value;
+  const previous = data.find(x=>x.id===oldId);
   const obj = {
     id: oldId || nextId(),
     name: $("#fname").value.trim(),
@@ -699,7 +765,12 @@ $("#form").addEventListener("submit", e => {
     reviewCycle: $("#fcycle").value,
     nextReview: $("#freview").value,
     updatedAt: today(),
-    tags: []
+    tags: previous?.tags || [],
+    difficulty: Number($("#fdifficulty").value || previous?.difficulty || 0),
+    difficultyReason: globalThis.ProjectEnhancements?.difficultyReasonForSave(previous) ?? previous?.difficultyReason ?? "",
+    aiAdvice: previous?.aiAdvice || null,
+    versions: Array.isArray(previous?.versions) ? previous.versions : [],
+    order: previous?.status === $("#fstatus").value ? previous?.order : null
   };
   if(!obj.name) return;
   const i = data.findIndex(x=>x.id===obj.id);
@@ -708,6 +779,7 @@ $("#form").addEventListener("submit", e => {
   save();
   closeForm();
   render();
+  globalThis.ProjectEnhancements?.afterProjectSaved(obj.id, {isNew:!previous});
 });
 
 ["q","natureFilter","feasFilter","resultFilter","sortMode"].forEach(id=>{
@@ -881,5 +953,6 @@ if(hasCloudConfig()){
   setSyncState("offline");
 }
 </script>
+<script src="./enhancements.js"></script>
 </body>
 </html>

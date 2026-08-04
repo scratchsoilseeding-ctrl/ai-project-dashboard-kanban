@@ -118,6 +118,7 @@
           <button class="mini icon-mini" type="button" data-move="down" data-project="${esc(project.id)}" title="下移" ${reorderEnabled ? "" : "disabled"}>↓</button>
           <button class="mini ai-mini" type="button" data-advice="${esc(project.id)}">✦ 步骤建议</button>
           <button class="mini" type="button" data-versions="${esc(project.id)}">版本 ${project.versions.length || ""}</button>
+          ${project.status === "已做成" ? `<button class="mini portfolio-mini" type="button" data-portfolio="${esc(project.id)}">${project.portfolio?.included ? "查看作品" : "收录作品"}</button>` : ""}
           <button class="mini" type="button" data-edit="${esc(project.id)}">编辑</button>
           ${project.status !== "已做成" ? `<button class="mini" type="button" data-done="${esc(project.id)}">完成</button>` : ""}
           <button class="mini" type="button" data-del="${esc(project.id)}">删除</button>
@@ -690,6 +691,8 @@
     if(advice){ openAdvice(advice.dataset.advice); return; }
     const versions = event.target.closest("[data-versions]");
     if(versions){ openVersions(versions.dataset.versions); return; }
+    const portfolio = event.target.closest("[data-portfolio]");
+    if(portfolio){ location.href = `./portfolio.html?project=${encodeURIComponent(portfolio.dataset.portfolio)}&edit=1`; return; }
     const move = event.target.closest("[data-move]");
     if(move){ moveProject(move.dataset.project, move.dataset.move); return; }
   });

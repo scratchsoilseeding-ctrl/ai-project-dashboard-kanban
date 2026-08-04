@@ -188,23 +188,41 @@
     return /\/chat\/completions$/i.test(clean) ? clean : `${clean}/chat/completions`;
   }
 
+  function isDeepSeekV4(config){
+    try {
+      const host = new URL(config.endpoint).hostname.toLowerCase();
+      return (host === "api.deepseek.com" || host.endsWith(".deepseek.com")) && /^deepseek-v4-/i.test(config.model);
+    } catch(error) {
+      return false;
+    }
+  }
+
   async function callAI(systemPrompt, userPrompt){
     const config = getAIConfig();
     if(!config) throw new Error("请先配置 AI 模型");
+    const requestBody = {
+      model:config.model,
+      temperature:0.2,
+      max_tokens:1800,
+      stream:false,
+      messages:[{role:"system", content:systemPrompt}, {role:"user", content:userPrompt}]
+    };
+    // DeepSeek V4 defaults to thinking mode. These dashboard actions need short,
+    // deterministic responses; disabling thinking also avoids long browser requests
+    // being interrupted by a VPN/proxy before the first response arrives.
+    if(isDeepSeekV4(config)) requestBody.thinking = {type:"disabled"};
     let response;
     try {
       response = await fetch(completionUrl(config.endpoint), {
         method:"POST",
-        headers:{"Authorization":`Bearer ${config.apiKey}`, "Content-Type":"application/json"},
-        body:JSON.stringify({
-          model:config.model,
-          temperature:0.2,
-          max_tokens:4000,
-          messages:[{role:"system", content:systemPrompt}, {role:"user", content:userPrompt}]
-        })
+        headers:{"Authorization":`Bearer ${config.apiKey}`, "Content-Type":"application/json", "Accept":"application/json"},
+        body:JSON.stringify(requestBody)
       });
     } catch(error) {
-      throw new Error("无法连接模型服务。请检查网络、API 地址，或确认该服务允许浏览器跨域调用。");
+      const hint = isDeepSeekV4(config)
+        ? "DeepSeek V4 请求已使用非思考模式；请稍后重试，并确认 VPN 没有中途切换。"
+        : "请检查网络、API 地址，或确认该服务允许浏览器跨域调用。";
+      throw new Error(`浏览器未收到模型响应。${hint}`);
     }
     const raw = await response.text();
     if(!response.ok) throw new Error(`模型请求失败（${response.status}）：${raw.slice(0,180)}`);

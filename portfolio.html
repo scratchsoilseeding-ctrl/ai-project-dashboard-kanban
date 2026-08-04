@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="light" />
+  <title>作品档案馆 · AI 项目总览台</title>
+  <link rel="stylesheet" href="./portfolio.css" />
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="./index.html"><span class="brand-mark">AI</span><span>PROJECT PORTFOLIO</span></a>
+    <nav aria-label="页面导航">
+      <a href="./index.html">项目看板</a>
+      <a class="active" href="./portfolio.html">作品档案馆</a>
+    </nav>
+    <div class="sync-state" id="syncState" data-state="offline"><i></i><span>本地资料</span></div>
+  </header>
+
+  <main>
+    <section class="archive-hero">
+      <div class="archive-kicker">WORK ARCHIVE · 作品生长记录</div>
+      <div class="hero-grid">
+        <div>
+          <h1>把做成的事，<br><em>整理成作品。</em></h1>
+          <p>从想法、搭建链路到用户反馈，把散落的过程组织成可以回看、展示与继续迭代的案例。</p>
+        </div>
+        <div class="hero-actions">
+          <button class="primary" id="addWorkBtn">＋ 收录已完成项目</button>
+          <button class="secondary" id="syncBtn">从云端刷新</button>
+        </div>
+      </div>
+      <div class="archive-stats">
+        <div><b id="workCount">0</b><span>件作品</span></div>
+        <div><b id="showcaseCount">0</b><span>件已展示</span></div>
+        <div><b id="userCount">0</b><span>位记录用户</span></div>
+        <div><b id="versionCount">0</b><span>次版本沉淀</span></div>
+      </div>
+    </section>
+
+    <section class="archive-index" id="archiveIndex">
+      <div class="section-heading">
+        <div><span>CURATED CASES</span><h2>作品目录</h2></div>
+        <p>草稿只有自己整理时可见；“展示中”表示内容已经准备好，可以作为完整案例阅读。</p>
+      </div>
+      <div class="filters">
+        <label class="search"><span>⌕</span><input id="workSearch" placeholder="搜索作品、想法、价值…" /></label>
+        <select id="stateFilter" aria-label="按状态筛选"><option value="">全部状态</option><option value="showcase">展示中</option><option value="draft">草稿</option></select>
+        <select id="categoryFilter" aria-label="按分类筛选"><option value="">全部分类</option></select>
+      </div>
+      <div class="work-grid" id="workGrid"></div>
+      <div class="empty-state" id="emptyState" hidden>
+        <span>01</span><h3>还没有作品</h3><p>先从“已做成”的项目里挑一个，把过程整理成第一份案例。</p>
+        <button class="primary" data-open-picker>收录第一个作品</button>
+      </div>
+    </section>
+
+    <section class="case-detail" id="caseDetail" hidden></section>
+  </main>
+
+  <dialog id="pickerDialog" class="modal picker-modal">
+    <div class="modal-head"><div><span>SELECT A PROJECT</span><h2>从已完成项目中收录</h2></div><button class="icon-close" data-close-dialog aria-label="关闭">×</button></div>
+    <label class="dialog-search"><input id="pickerSearch" placeholder="搜索已完成项目…" /></label>
+    <div class="picker-list" id="pickerList"></div>
+  </dialog>
+
+  <dialog id="editorDialog" class="modal editor-modal">
+    <form id="portfolioForm">
+      <div class="modal-head sticky-head">
+        <div><span>CASE EDITOR</span><h2 id="editorTitle">编辑作品</h2></div>
+        <div class="editor-head-actions"><button type="button" class="secondary compact" id="aiDraftBtn">✦ AI 生成草稿</button><button type="button" class="icon-close" data-close-dialog aria-label="关闭">×</button></div>
+      </div>
+      <input type="hidden" id="projectId" />
+      <div class="editor-layout">
+        <aside class="editor-nav" aria-label="编辑章节">
+          <a href="#edit-overview">01 概览</a><a href="#edit-idea">02 想法</a><a href="#edit-build">03 搭建链路</a><a href="#edit-media">04 媒体</a><a href="#edit-users">05 用户</a><a href="#edit-outcome">06 结果</a><a href="#edit-share">07 宣传</a>
+        </aside>
+        <div class="editor-sections">
+          <section id="edit-overview" class="editor-section">
+            <div class="chapter"><span>01</span><div><h3>作品概览</h3><p>让人一眼知道这是什么、为谁解决什么问题。</p></div></div>
+            <div class="fields two"><label>作品名称<input id="pfTitle" required /></label><label>作品分类<input id="pfCategory" placeholder="效率工具 / 内容创作 / 生活方式…" /></label></div>
+            <label>一句话说明<input id="pfHeadline" placeholder="用一句清楚、有记忆点的话介绍作品" /></label>
+            <div class="fields three"><label>完成日期<input id="pfLaunchDate" type="date" /></label><label>展示状态<select id="pfDisplayState"><option value="draft">草稿</option><option value="showcase">展示中</option></select></label><label>演示地址<input id="pfDemo" type="url" placeholder="https://" /></label></div>
+          </section>
+
+          <section id="edit-idea" class="editor-section">
+            <div class="chapter"><span>02</span><div><h3>想法与价值</h3><p>记录它为什么值得做，而不只是做了什么。</p></div></div>
+            <label>最初遇到的问题<textarea id="pfProblem" rows="3"></textarea></label>
+            <div class="fields two"><label>灵感从哪里来<textarea id="pfInspiration" rows="3"></textarea></label><label>希望帮助谁<textarea id="pfTargetUsers" rows="3"></textarea></label></div>
+            <label>它带来的核心价值<textarea id="pfValue" rows="3"></textarea></label>
+          </section>
+
+          <section id="edit-build" class="editor-section">
+            <div class="chapter"><span>03</span><div><h3>搭建链路</h3><p>每行写一个步骤，作品页会自动排成时间链路。</p></div></div>
+            <textarea id="pfBuildPath" rows="7" placeholder="确认需求与边界&#10;制作第一版原型&#10;接入数据与 AI 模型&#10;测试、部署与迭代"></textarea>
+          </section>
+
+          <section id="edit-media" class="editor-section">
+            <div class="chapter"><span>04</span><div><h3>图片与视频</h3><p>图片区支持直接按 ⌘V / Ctrl+V 粘贴截图。</p></div></div>
+            <div class="media-columns">
+              <div><label class="field-label">封面图</label><div class="paste-zone" id="coverZone" tabindex="0" data-image-target="cover"><div id="coverPreview"></div><p>点击后粘贴图片，或选择文件</p><input id="coverInput" type="file" accept="image/*" hidden /><button type="button" class="secondary compact" data-choose-image="cover">选择封面</button></div></div>
+              <div><label class="field-label">宣传图片（最多 6 张）</label><div class="paste-zone gallery-zone" id="galleryZone" tabindex="0" data-image-target="gallery"><div class="gallery-preview" id="galleryPreview"></div><p>点击后可连续粘贴截图</p><input id="galleryInput" type="file" accept="image/*" multiple hidden /><button type="button" class="secondary compact" data-choose-image="gallery">添加图片</button></div></div>
+            </div>
+            <label>视频地址<input id="pfVideo" type="url" placeholder="YouTube、Bilibili 或 MP4 视频链接" /></label>
+          </section>
+
+          <section id="edit-users" class="editor-section">
+            <div class="chapter"><span>05</span><div><h3>用户与验证</h3><p>没有数据可以留空，AI 不会替你编造。</p></div></div>
+            <div class="fields two"><label>实际用户数<input id="pfUserCount" type="number" min="0" placeholder="0" /></label><label>典型使用场景<input id="pfScenarios" /></label></div>
+            <div class="fields two"><label>用户反馈<textarea id="pfFeedback" rows="4"></textarea></label><label>关键数据 / 验证结果<textarea id="pfMetrics" rows="4"></textarea></label></div>
+          </section>
+
+          <section id="edit-outcome" class="editor-section">
+            <div class="chapter"><span>06</span><div><h3>结果与复盘</h3><p>作品不是终点，也记录下一次怎样做得更好。</p></div></div>
+            <label>最终实现了什么<textarea id="pfResults" rows="4"></textarea></label>
+            <div class="fields two"><label>经验与教训<textarea id="pfLessons" rows="4"></textarea></label><label>下一版本<textarea id="pfNextVersion" rows="4"></textarea></label></div>
+          </section>
+
+          <section id="edit-share" class="editor-section">
+            <div class="chapter"><span>07</span><div><h3>宣传与链接</h3><p>把案例整理成可以分享的简短表达。</p></div></div>
+            <div class="fields two"><label>代码仓库<input id="pfRepo" type="url" placeholder="https://github.com/…" /></label><label>相关文章<input id="pfArticle" type="url" placeholder="https://" /></label></div>
+            <label>宣传标题<input id="pfPromoTitle" /></label><label>宣传文案<textarea id="pfPromoCopy" rows="5"></textarea></label>
+          </section>
+        </div>
+      </div>
+      <div class="editor-footer"><span id="editorHint">修改会保存到本地，并自动同步到云端。</span><button type="button" class="secondary" data-close-dialog>取消</button><button class="primary" type="submit">保存作品</button></div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="./portfolio.js"></script>
+</body>
+</html>

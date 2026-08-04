@@ -443,6 +443,22 @@
     $("#versionImagePreview").innerHTML = pendingVersionImages.map(image => `<img src="${esc(image.dataUrl)}" alt="${esc(image.name)}" title="${esc(image.name)}" />`).join("");
   }
 
+  async function addPendingVersionImages(files, {replace=false}={}){
+    const imageFiles = [...files].filter(file => file?.type?.startsWith("image/"));
+    if(!imageFiles.length) return 0;
+    if(replace) pendingVersionImages = [];
+    const room = MAX_IMAGES_PER_VERSION - pendingVersionImages.length;
+    if(room <= 0) throw new Error(`每条版本记录最多添加 ${MAX_IMAGES_PER_VERSION} 张图片`);
+    const accepted = imageFiles.slice(0, room);
+    $("#versionImagePreview").innerHTML = pendingVersionImages.length
+      ? `${pendingVersionImages.map(image => `<img src="${esc(image.dataUrl)}" alt="${esc(image.name)}" title="${esc(image.name)}" />`).join("")}<span>正在压缩新图片…</span>`
+      : "正在压缩图片…";
+    for(const file of accepted) pendingVersionImages.push(await imageFromFile(file));
+    renderPendingImages();
+    if(imageFiles.length > accepted.length) showToast(`已添加 ${accepted.length} 张；每条版本记录最多 ${MAX_IMAGES_PER_VERSION} 张`, true);
+    return accepted.length;
+  }
+
   async function imageFromFile(file){
     if(!file.type.startsWith("image/")) throw new Error(`${file.name} 不是图片`);
     if(file.size > 12 * 1024 * 1024) throw new Error(`${file.name} 超过 12MB`);
@@ -632,13 +648,28 @@
   $("#closeVersionsDlg").addEventListener("click", () => $("#versionsDlg").close());
   $("#versionImages").addEventListener("change", async event => {
     const files = [...event.target.files].slice(0, MAX_IMAGES_PER_VERSION);
-    pendingVersionImages = [];
-    $("#versionImagePreview").innerHTML = "正在压缩图片…";
     try {
-      for(const file of files) pendingVersionImages.push(await imageFromFile(file));
-      renderPendingImages();
+      await addPendingVersionImages(files, {replace:true});
     } catch(error) {
       pendingVersionImages = [];
+      renderPendingImages();
+      showToast(error.message, true);
+    }
+  });
+  $("#versionsDlg").addEventListener("paste", async event => {
+    const clipboard = event.clipboardData;
+    if(!clipboard) return;
+    const itemFiles = [...(clipboard.items || [])]
+      .filter(item => item.type?.startsWith("image/"))
+      .map(item => item.getAsFile())
+      .filter(Boolean);
+    const files = itemFiles.length ? itemFiles : [...(clipboard.files || [])].filter(file => file.type?.startsWith("image/"));
+    if(!files.length) return;
+    event.preventDefault();
+    try {
+      const added = await addPendingVersionImages(files);
+      if(added) showToast(`已从剪贴板粘贴 ${added} 张图片`);
+    } catch(error) {
       renderPendingImages();
       showToast(error.message, true);
     }

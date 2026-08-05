@@ -10,7 +10,10 @@
   let difficultyTimer = null;
   let adviceProjectId = "";
   let versionProjectId = "";
+  let editingVersionId = "";
   let pendingVersionImages = [];
+  let lightboxImages = [];
+  let lightboxImageIndex = 0;
   let draggedProjectId = "";
 
   function clamp(value, min, max){
@@ -441,7 +444,7 @@
   }
 
   function renderPendingImages(){
-    $("#versionImagePreview").innerHTML = pendingVersionImages.map(image => `<img src="${esc(image.dataUrl)}" alt="${esc(image.name)}" title="${esc(image.name)}" />`).join("");
+    $("#versionImagePreview").innerHTML = pendingVersionImages.map((image, index) => `<div class="pending-image"><img src="${esc(image.dataUrl)}" alt="${esc(image.name)}" title="${esc(image.name)}" /><button type="button" data-remove-pending-image="${index}" aria-label="移除 ${esc(image.name || "图片")}">×</button></div>`).join("");
   }
 
   async function addPendingVersionImages(files, {replace=false}={}){
@@ -482,26 +485,80 @@
   function renderVersions(project){
     const versions = [...(project.versions || [])].sort((a,b) => String(b.date || "").localeCompare(String(a.date || "")) || String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
     $("#versionTimeline").innerHTML = versions.length ? versions.map(version => `
-      <article class="version-entry">
-        <button class="delete-version" type="button" data-delete-version="${esc(version.id)}" title="删除这条版本记录">删除</button>
+      <article class="version-entry" data-version-entry="${esc(version.id)}">
+        <div class="version-actions"><button class="edit-version" type="button" data-edit-version="${esc(version.id)}" title="编辑这条版本记录">编辑</button><button class="delete-version" type="button" data-delete-version="${esc(version.id)}" title="删除这条版本记录">删除</button></div>
         <div class="version-date">${esc(version.date || "未标日期")}</div>
         <div>
           <div class="version-text">${esc(version.description || "仅记录图片")}</div>
-          ${version.images?.length ? `<div class="version-gallery">${version.images.map(image => `<a href="${esc(image.dataUrl)}" target="_blank" rel="noopener"><img src="${esc(image.dataUrl)}" alt="${esc(image.name || "版本图片")}" /></a>`).join("")}</div>` : ""}
+          ${version.images?.length ? `<div class="version-gallery">${version.images.map((image, imageIndex) => `<button type="button" data-view-version-image="${esc(version.id)}" data-image-index="${imageIndex}" aria-label="查看大图：${esc(image.name || `版本图片 ${imageIndex + 1}`)}"><img src="${esc(image.dataUrl)}" alt="${esc(image.name || "版本图片")}" /></button>`).join("")}</div>` : ""}
         </div>
       </article>`).join("") : `<div class="version-empty">还没有版本记录。把每一次小进展留下来，它会慢慢长成项目的生长年轮。</div>`;
+  }
+
+  function resetVersionComposer(){
+    editingVersionId = "";
+    pendingVersionImages = [];
+    $("#versionDate").value = today();
+    $("#versionDescription").value = "";
+    $("#versionImages").value = "";
+    $("#versionComposerMode").textContent = "新增记录";
+    $("#versionComposerTitle").textContent = "记录一个新版本";
+    $("#saveVersionBtn").textContent = "保存版本记录";
+    $("#cancelVersionEdit").hidden = true;
+    renderPendingImages();
+  }
+
+  function editVersion(id){
+    const project = data.find(item => item.id === versionProjectId);
+    const version = project?.versions?.find(item => item.id === id);
+    if(!version) return;
+    editingVersionId = id;
+    pendingVersionImages = (version.images || []).map(image => ({...image}));
+    $("#versionDate").value = version.date || today();
+    $("#versionDescription").value = version.description || "";
+    $("#versionImages").value = "";
+    $("#versionComposerMode").textContent = "编辑记录";
+    $("#versionComposerTitle").textContent = version.date ? `正在编辑 ${version.date}` : "正在编辑未标日期版本";
+    $("#saveVersionBtn").textContent = "保存修改";
+    $("#cancelVersionEdit").hidden = false;
+    renderPendingImages();
+    $(".version-composer").scrollIntoView({behavior:"smooth", block:"start"});
+    $("#versionDescription").focus();
+  }
+
+  function renderVersionLightbox(){
+    const image = lightboxImages[lightboxImageIndex];
+    if(!image) return;
+    $("#lightboxImage").src = image.dataUrl;
+    $("#lightboxImage").alt = image.name || "版本图片大图";
+    $("#lightboxCaption").textContent = image.name || "版本图片";
+    $("#lightboxCounter").textContent = `${lightboxImageIndex + 1} / ${lightboxImages.length}`;
+    $("#lightboxPrev").disabled = lightboxImages.length < 2;
+    $("#lightboxNext").disabled = lightboxImages.length < 2;
+  }
+
+  function openVersionLightbox(versionId, imageIndex){
+    const project = data.find(item => item.id === versionProjectId);
+    const version = project?.versions?.find(item => item.id === versionId);
+    lightboxImages = (version?.images || []).map(image => ({...image}));
+    if(!lightboxImages.length) return;
+    lightboxImageIndex = Math.max(0, Math.min(Number(imageIndex) || 0, lightboxImages.length - 1));
+    renderVersionLightbox();
+    if(!$("#versionLightboxDlg").open) $("#versionLightboxDlg").showModal();
+  }
+
+  function shiftVersionLightbox(direction){
+    if(lightboxImages.length < 2) return;
+    lightboxImageIndex = (lightboxImageIndex + direction + lightboxImages.length) % lightboxImages.length;
+    renderVersionLightbox();
   }
 
   function openVersions(id){
     const project = data.find(item => item.id === id);
     if(!project) return;
     versionProjectId = id;
-    pendingVersionImages = [];
     $("#versionsTitle").textContent = `${project.name} · 版本记录`;
-    $("#versionDate").value = today();
-    $("#versionDescription").value = "";
-    $("#versionImages").value = "";
-    renderPendingImages();
+    resetVersionComposer();
     renderVersions(project);
     $("#versionsDlg").showModal();
   }
@@ -511,15 +568,19 @@
     if(!project) return;
     const description = $("#versionDescription").value.trim();
     if(!description && !pendingVersionImages.length){ showToast("请填写版本说明或上传图片", true); return; }
+    const existing = editingVersionId ? project.versions.find(item => item.id === editingVersionId) : null;
     const version = {
-      id:uid("version"),
+      id:existing?.id || uid("version"),
       date:$("#versionDate").value || today(),
       description,
       images:pendingVersionImages,
-      createdAt:new Date().toISOString()
+      createdAt:existing?.createdAt || new Date().toISOString(),
+      updatedAt:new Date().toISOString()
     };
     const before = [...project.versions];
-    project.versions = [version, ...project.versions];
+    project.versions = existing
+      ? project.versions.map(item => item.id === existing.id ? version : item)
+      : [version, ...project.versions];
     if(JSON.stringify(data).length > MAX_LOCAL_JSON_CHARS){
       project.versions = before;
       showToast("图片累计容量已接近浏览器上限。请减少图片或先导出 JSON 备份。", true);
@@ -528,8 +589,9 @@
     project.updatedAt = today();
     save();
     render();
-    openVersions(project.id);
-    showToast("版本记录已保存并同步");
+    renderVersions(project);
+    resetVersionComposer();
+    showToast(existing ? "版本记录已更新并同步" : "版本记录已保存并同步");
   }
 
   function bindDragAndDrop(){
@@ -647,6 +709,7 @@
     catch(error){ showToast("复制失败，请手动选择文本", true); }
   });
   $("#closeVersionsDlg").addEventListener("click", () => $("#versionsDlg").close());
+  $("#cancelVersionEdit").addEventListener("click", resetVersionComposer);
   $("#versionImages").addEventListener("change", async event => {
     const files = [...event.target.files].slice(0, MAX_IMAGES_PER_VERSION);
     try {
@@ -676,14 +739,35 @@
     }
   });
   $("#saveVersionBtn").addEventListener("click", saveVersion);
+  $("#versionImagePreview").addEventListener("click", event => {
+    const button = event.target.closest("[data-remove-pending-image]");
+    if(!button) return;
+    pendingVersionImages.splice(Number(button.dataset.removePendingImage), 1);
+    renderPendingImages();
+  });
   $("#versionTimeline").addEventListener("click", event => {
+    const imageButton = event.target.closest("[data-view-version-image]");
+    if(imageButton){ openVersionLightbox(imageButton.dataset.viewVersionImage, imageButton.dataset.imageIndex); return; }
+    const editButton = event.target.closest("[data-edit-version]");
+    if(editButton){ editVersion(editButton.dataset.editVersion); return; }
     const button = event.target.closest("[data-delete-version]");
     if(!button || !confirm("确定删除这条版本记录吗？")) return;
     const project = data.find(item => item.id === versionProjectId);
     project.versions = project.versions.filter(version => version.id !== button.dataset.deleteVersion);
+    if(editingVersionId === button.dataset.deleteVersion) resetVersionComposer();
     save();
     render();
     renderVersions(project);
+  });
+  $("#closeVersionLightbox").addEventListener("click", () => $("#versionLightboxDlg").close());
+  $("#lightboxPrev").addEventListener("click", () => shiftVersionLightbox(-1));
+  $("#lightboxNext").addEventListener("click", () => shiftVersionLightbox(1));
+  $("#versionLightboxDlg").addEventListener("click", event => {
+    if(event.target === $("#versionLightboxDlg")) $("#versionLightboxDlg").close();
+  });
+  $("#versionLightboxDlg").addEventListener("keydown", event => {
+    if(event.key === "ArrowLeft") shiftVersionLightbox(-1);
+    if(event.key === "ArrowRight") shiftVersionLightbox(1);
   });
 
   document.body.addEventListener("click", event => {

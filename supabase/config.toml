@@ -1,0 +1,4 @@
+project_id = "eifpsbcjavsfndntctdu"
+
+[functions.inspiration-video]
+verify_jwt = false

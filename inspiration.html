@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>灵感研究所 · AI 项目总览台</title>
+  <link rel="stylesheet" href="./inspiration.css" />
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="./index.html"><span class="brand-mark">AI</span><span>PROJECT PORTFOLIO</span></a>
+    <nav aria-label="页面导航">
+      <a href="./index.html">项目看板</a>
+      <a class="active" href="./inspiration.html">灵感研究所</a>
+      <a href="./portfolio.html">作品档案馆</a>
+    </nav>
+    <div class="sync-state" id="syncState" data-state="offline"><i></i><span>本地灵感</span></div>
+  </header>
+
+  <main>
+    <section class="lab-hero">
+      <div class="hero-copy">
+        <span class="kicker">REFERENCE LAB · 参考不是终点</span>
+        <h1>把“好喜欢”<br />变成<span>做得出来</span></h1>
+        <p>收藏他人的作品链接，用 AI 提炼内容亮点、判断可复制性，再拆成一条能亲手完成的制作路线。</p>
+      </div>
+      <div class="hero-actions">
+        <button class="primary light" id="addInspirationBtn">＋ 收下一份灵感</button>
+        <button class="outline" id="aiConfigBtn">✦ <span id="aiConfigLabel">配置 AI</span></button>
+        <button class="outline" id="refreshCloudBtn">从云端刷新</button>
+      </div>
+      <div class="hero-note" aria-hidden="true"><b>SEE</b><span>看见</span><i></i><b>THINK</b><span>拆解</span><i></i><b>MAKE</b><span>复刻</span></div>
+    </section>
+
+    <section class="lab-stats" aria-label="灵感统计">
+      <div><span>已收藏</span><b id="totalCount">0</b><em>references</em></div>
+      <div><span>AI 已分析</span><b id="analyzedCount">0</b><em>decoded</em></div>
+      <div><span>高可复制</span><b id="reproCount">0</b><em>ready to make</em></div>
+      <div><span>来源平台</span><b id="platformCount">0</b><em>sources</em></div>
+    </section>
+
+    <section class="board-section">
+      <div class="section-heading">
+        <div><span>INSPIRATION BOARD</span><h2>灵感研究墙</h2></div>
+        <p>不是无尽收藏夹。每一张卡片，都应该帮助你理解一次、判断一次、行动一次。</p>
+      </div>
+      <div class="filters">
+        <label class="search"><span>⌕</span><input id="searchInput" placeholder="搜索标题、作者、亮点、步骤…" /></label>
+        <select id="platformFilter" aria-label="筛选来源平台"><option value="">全部平台</option></select>
+        <select id="analysisFilter" aria-label="筛选分析状态"><option value="">全部状态</option><option value="analyzed">AI 已分析</option><option value="pending">等待分析</option></select>
+        <select id="scoreFilter" aria-label="筛选可复制性"><option value="">全部可复制性</option><option value="4">高可复制（4–5）</option><option value="3">中等（3）</option><option value="1">探索型（1–2）</option></select>
+      </div>
+
+      <div class="empty-state" id="emptyState">
+        <div class="empty-mark">↗</div>
+        <h3>你的第一张灵感卡，正在某个链接里</h3>
+        <p>复制作品链接，再补一句“哪里打动了你”，AI 才能做出真正有用的拆解。</p>
+        <button class="primary" data-open-editor>添加第一张卡片</button>
+      </div>
+      <div class="inspiration-grid" id="inspirationGrid"></div>
+    </section>
+  </main>
+
+  <dialog class="modal editor-modal" id="editorDialog">
+    <form id="inspirationForm">
+      <div class="modal-head">
+        <div><span>CAPTURE & DECODE</span><h2 id="editorTitle">收下一份灵感</h2></div>
+        <button class="icon-close" type="button" data-close-editor aria-label="关闭">×</button>
+      </div>
+      <input type="hidden" id="itemId" />
+      <div class="editor-grid">
+        <div class="editor-fields">
+          <label class="full">原作品链接<input id="itemUrl" type="url" required placeholder="粘贴小红书、B 站、YouTube、网站等链接" /></label>
+          <label>作品标题<input id="itemTitle" placeholder="可留空，先快速收进灵感库" /></label>
+          <label>作者 / 账号<input id="itemCreator" placeholder="可选" /></label>
+          <label>来源平台<input id="itemPlatform" list="platformOptions" placeholder="自动识别或手动填写" /></label>
+          <label>内容类型<input id="itemType" placeholder="网页、视频、产品、视觉、文章…" /></label>
+          <label class="full">你被什么打动了<textarea id="itemNote" rows="4" placeholder="例如：开头三秒很有冲击力；信息结构很清楚；视觉风格很克制……"></textarea></label>
+          <div class="cover-field full">
+            <span class="field-label">卡片封面（可选）</span>
+            <div class="paste-zone" id="coverZone" tabindex="0">
+              <div id="coverPreview"></div>
+              <p>点击后直接粘贴截图，或选择图片</p>
+              <input id="coverInput" type="file" accept="image/*" hidden />
+              <button class="secondary compact" type="button" id="chooseCoverBtn">选择封面</button>
+            </div>
+          </div>
+        </div>
+
+        <aside class="analysis-editor">
+          <div class="analysis-head"><div><span>AI DECODE</span><h3>拆解报告</h3></div><button class="ai-button" type="button" id="analyzeBtn">✦ AI 一键分析</button></div>
+          <label>内容亮点<textarea id="itemHighlights" rows="4" placeholder="它最值得学习的表达、结构或体验"></textarea></label>
+          <label>可复制性分析<textarea id="itemReproducibility" rows="4" placeholder="哪些可以借鉴、哪些依赖资源、应该如何改成自己的"></textarea></label>
+          <label>制作步骤拆解<textarea id="itemSteps" rows="7" placeholder="每行一个步骤"></textarea></label>
+          <label>可复制性评分<select id="itemScore"><option value="0">尚未判断</option><option value="1">1 · 高度依赖原作者</option><option value="2">2 · 需要较多资源</option><option value="3">3 · 可以局部借鉴</option><option value="4">4 · 路径清楚可复刻</option><option value="5">5 · 可以立即动手</option></select></label>
+          <label>标签<input id="itemTags" placeholder="用逗号分隔，如：叙事, 视觉, AI 产品" /></label>
+          <p class="analysis-hint" id="analysisHint">AI 不会自动浏览受限页面。标题和你的观察越具体，分析越准确。</p>
+        </aside>
+      </div>
+      <div class="modal-footer"><span>修改先保存到当前浏览器，并复用项目看板的云同步设置。</span><button class="secondary" type="button" data-close-editor>取消</button><button class="primary" type="submit">保存灵感卡</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="modal ai-modal" id="aiDialog">
+    <form id="aiForm">
+      <div class="modal-head"><div><span>MODEL CONNECTION</span><h2>AI 模型设置</h2></div><button class="icon-close" type="button" data-close-ai aria-label="关闭">×</button></div>
+      <p class="privacy-note"><strong>API Key 只保存在当前浏览器。</strong>它不会写入 GitHub，也不会同步到 Supabase。</p>
+      <label>API 地址<input id="aiEndpoint" required placeholder="https://api.deepseek.com/v1" /></label>
+      <div class="two-fields"><label>模型名称<input id="aiModel" required placeholder="deepseek-chat" /></label><label>API Key<input id="aiKey" type="password" required placeholder="sk-…" /></label></div>
+      <p class="form-message" id="aiMessage"></p>
+      <div class="dialog-actions"><button class="secondary" type="button" id="clearAiBtn">清除配置</button><button class="secondary" type="button" id="testAiBtn">测试连接</button><button class="primary" type="submit">保存 AI 配置</button></div>
+    </form>
+  </dialog>
+
+  <datalist id="platformOptions"><option>小红书</option><option>Bilibili</option><option>YouTube</option><option>抖音</option><option>GitHub</option><option>网站</option><option>公众号</option><option>Instagram</option><option>Pinterest</option></datalist>
+  <div class="toast" id="toast" role="status"></div>
+  <script src="./inspiration.js"></script>
+</body>
+</html>

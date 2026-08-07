@@ -146,6 +146,7 @@ dialog::backdrop{background:rgba(20,25,20,.48)}
     <div class="actions">
       <button class="btn" id="addBtn">＋ 录入新项目</button>
       <a class="btn alt" href="./portfolio.html">作品档案馆 ↗</a>
+      <a class="btn alt" href="./inspiration.html">灵感研究所 ↗</a>
       <button class="btn alt" id="jsonOut">导出 JSON</button>
       <button class="btn alt" id="csvOut">导出 CSV</button>
       <button class="btn alt" id="jsonIn">导入 JSON</button>
@@ -652,7 +653,7 @@ function filtered(){
   const nature = $("#natureFilter").value;
   const feas = $("#feasFilter").value;
   const result = $("#resultFilter").value;
-  return sortList(data.filter(p => {
+  return sortList(data.filter(p => p?.status !== "__system__").filter(p => {
     const hay = [p.id,p.name,p.purpose,p.analysis,p.nextAction].join(" ").toLowerCase();
     return (!q || hay.includes(q)) && (!nature || p.nature===nature) && (!feas || p.feasibility===feas) && (!result || p.result===result);
   }));
@@ -689,13 +690,14 @@ function cardHTML(p){
 }
 
 function renderStats(){
-  $("#sTotal").textContent = data.length;
-  $("#sDone").textContent = data.filter(x=>x.status==="已做成").length;
-  $("#sDoing").textContent = data.filter(x=>x.status==="正在做").length;
-  $("#sIdea").textContent = data.filter(x=>x.status==="还没开始").length;
-  $("#sReady").textContent = data.filter(x=>x.status==="还没开始" && x.feasibility==="高").length;
+  const projects = data.filter(x => x?.status !== "__system__");
+  $("#sTotal").textContent = projects.length;
+  $("#sDone").textContent = projects.filter(x=>x.status==="已做成").length;
+  $("#sDoing").textContent = projects.filter(x=>x.status==="正在做").length;
+  $("#sIdea").textContent = projects.filter(x=>x.status==="还没开始").length;
+  $("#sReady").textContent = projects.filter(x=>x.status==="还没开始" && x.feasibility==="高").length;
 
-  const due = data.filter(x => x.nextReview && x.nextReview <= today());
+  const due = projects.filter(x => x.nextReview && x.nextReview <= today());
   $("#duePanel").style.display = due.length ? "block" : "none";
   $("#dueList").innerHTML = due.map(x=>`<button class="chip" data-open="${esc(x.id)}">${esc(x.name)} · ${esc(x.nextReview)}</button>`).join("");
 }
@@ -731,7 +733,7 @@ function render(){
 }
 
 function nextId(){
-  const nums = data.map(p => parseInt(String(p.id).replace(/\D/g,""),10) || 0);
+  const nums = data.filter(p => p?.status !== "__system__").map(p => parseInt(String(p.id).replace(/\D/g,""),10) || 0);
   return "P" + String(Math.max(...nums, 101) + 1).padStart(3,"0");
 }
 
@@ -855,7 +857,7 @@ $("#jsonOut").onclick = ()=>download(`AI项目总览看板_${today()}.json`, JSO
 $("#csvOut").onclick = ()=>{
   const cols = ["id","name","status","result","nature","feasibility","purpose","analysis","nextAction","reviewCycle","nextReview","updatedAt"];
   const q = v => `"${String(v ?? "").replaceAll('"','""')}"`;
-  const csv = "\ufeff" + [cols.join(","), ...data.map(p=>cols.map(c=>q(p[c])).join(","))].join("\n");
+  const csv = "\ufeff" + [cols.join(","), ...data.filter(p => p?.status !== "__system__").map(p=>cols.map(c=>q(p[c])).join(","))].join("\n");
   download(`AI项目总览看板_${today()}.csv`, csv, "text/csv;charset=utf-8");
 };
 $("#jsonIn").onclick = ()=>$("#fileIn").click();

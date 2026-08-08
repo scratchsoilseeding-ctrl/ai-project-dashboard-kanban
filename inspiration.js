@@ -139,7 +139,7 @@
   function videoServiceUrl(){return `${cloudConfig.url.replace(/\/+$/,"")}/functions/v1/inspiration-video`;}
   async function callVideoService(action,payload={}){
     if(!hasCloud())throw new Error("请先在项目看板中配置云同步");
-    const response=await fetch(videoServiceUrl(),{method:"POST",headers:{apikey:cloudConfig.anonKey,Authorization:`Bearer ${cloudConfig.anonKey}`,"Content-Type":"application/json"},body:JSON.stringify({action,accessKey:cloudConfig.spaceId,...payload})});
+    const response=await fetch(videoServiceUrl(),{method:"POST",headers:{apikey:cloudConfig.anonKey,"Content-Type":"application/json"},body:JSON.stringify({action,accessKey:cloudConfig.spaceId,...payload})});
     const raw=await response.text();let result;try{result=JSON.parse(raw);}catch(error){result={error:raw};}if(!response.ok)throw new Error(result.error||`视频服务请求失败（${response.status}）`);return result;
   }
   async function checkOmniService(){try{const result=await callVideoService("ping");if(!result.configured)throw new Error("Qwen-Omni 密钥尚未配置");setOmniState(`${result.model||"Qwen-Omni"} 已就绪`,"ready");return true;}catch(error){setOmniState(error.message,"error");return false;}}

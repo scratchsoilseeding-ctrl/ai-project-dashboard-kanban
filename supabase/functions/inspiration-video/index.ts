@@ -1,5 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+declare const EdgeRuntime: {waitUntil(promise: Promise<unknown>): void};
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
@@ -222,12 +224,13 @@ async function callQwen(mediaContent: any[], reference: Record<string, unknown>,
       stream: false,
       modalities: ["text"],
       temperature: 0.1,
-      max_tokens: 8000,
+      max_tokens: 4200,
       messages: [
         {role: "system", content: "你是严谨的多模态内容研究员和个人创作教练。所有结论都必须来自作品中可观察到的画面、声音、字幕或页面公开文字。"},
         {role: "user", content: [...mediaContent, {type: "text", text: analysisPrompt(reference, mediaType)}]},
       ],
     }),
+    signal: AbortSignal.timeout(360_000),
   });
   const raw = await response.text();
   if (!response.ok) {
@@ -241,6 +244,98 @@ async function callQwen(mediaContent: any[], reference: Record<string, unknown>,
   const textContent = Array.isArray(content) ? content.map((item: any) => item?.text || "").join("") : String(content || "");
   if (!textContent) throw new Error("Qwen-Omni 没有返回分析内容");
   return {model, result: parseModelJson(textContent)};
+}
+
+async function prepareAnalysis(body: any, admin: any, supabaseUrl: string) {
+  const path = clean(body.path, 500);
+  let directVideo = clean(body.videoUrl, 3000);
+  let resolved: Awaited<ReturnType<typeof resolveXhs>> | null = null;
+  const metadata = body.metadata || {};
+
+  if (path) {
+    if (!path.startsWith("references/")) throw new Error("视频路径无效");
+    const {data: signed, error} = await admin.storage.from(bucketName).createSignedUrl(path, 60 * 60 * 3);
+    if (error || !signed?.signedUrl) throw error || new Error("无法读取已上传视频");
+    directVideo = signed.signedUrl;
+  } else if (!/^https:\/\//i.test(directVideo) && body.sourceUrl) {
+    resolved = await resolveXhs(body.sourceUrl);
+    directVideo = resolved.video;
+  }
+
+  let mediaType = "video";
+  let mediaContent: any[] = [];
+  const duration = Number(resolved?.durationSeconds || 0);
+  const fps = duration >= 240 ? 0.2 : duration >= 90 ? 0.35 : 0.6;
+  if (/^https:\/\//i.test(directVideo)) {
+    mediaContent = [{type: "video_url", video_url: {url: directVideo, fps}}];
+  } else if (resolved?.images.length) {
+    mediaType = "gallery";
+    mediaContent = resolved.images.map((url: string) => ({type: "image_url", image_url: {url}}));
+  } else {
+    throw new Error("没有解析到可分析的视频或图集；可改用上传文件");
+  }
+
+  const reference = {
+    title: clean(resolved?.title || metadata.title, 240),
+    creator: clean(resolved?.creator || metadata.creator, 160),
+    platform: clean(resolved?.platform || metadata.platform, 100),
+    type: clean(metadata.type || (mediaType === "video" ? "视频" : "图集"), 100),
+    sourceUrl: clean(resolved?.finalUrl || metadata.sourceUrl || body.sourceUrl, 1000),
+    userObservation: clean(metadata.userObservation, 1200),
+    publicDescription: clean(resolved?.description, 5000),
+    chapters: clean(resolved?.chapters, 2000),
+    subtitleTranscript: clean(resolved?.subtitle, 24_000),
+  };
+  const resolvedPayload = resolved ? {
+    title: resolved.title, creator: resolved.creator, platform: resolved.platform,
+    mediaType, durationSeconds: resolved.durationSeconds, coverUrl: resolved.coverUrl,
+    sourceLabel: mediaType === "video" ? "小红书链接·视频实读" : "小红书链接·图集实读",
+  } : {mediaType, durationSeconds: 0, sourceLabel: path ? "上传视频·画面声音实读" : "视频直链·画面声音实读"};
+  return {mediaContent, reference, mediaType, resolved: resolvedPayload, fps};
+}
+
+function streamAnalysis(prepared: Awaited<ReturnType<typeof prepareAnalysis>>) {
+  const encoder = new TextEncoder();
+  const stream = new TransformStream<Uint8Array, Uint8Array>();
+  const writer = stream.writable.getWriter();
+  const send = (event: string, payload: unknown) => writer.write(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`));
+  const startedAt = Date.now();
+
+  const task = (async () => {
+    let heartbeat: number | undefined;
+    try {
+      await send("progress", {
+        stage: "resolved",
+        message: prepared.mediaType === "video"
+          ? `链接已解析，已读取${prepared.resolved.durationSeconds ? ` ${Math.ceil(prepared.resolved.durationSeconds / 60)} 分钟` : ""}视频`
+          : "链接已解析，已读取作品图集",
+        resolved: prepared.resolved,
+      });
+      await send("progress", {stage: "model", message: `Qwen 正在理解内容（${prepared.fps} FPS），长视频通常需要 1–4 分钟`});
+      heartbeat = setInterval(() => {
+        const elapsed = Math.max(1, Math.floor((Date.now() - startedAt) / 1000));
+        void send("progress", {stage: "model", message: `Qwen 仍在分析，已等待 ${elapsed} 秒…`}).catch(() => undefined);
+      }, 12_000) as unknown as number;
+      const analyzed = await callQwen(prepared.mediaContent, prepared.reference, prepared.mediaType);
+      await send("result", {ok: true, ...analyzed, resolved: prepared.resolved});
+    } catch (error) {
+      console.error("stream analysis failed", error);
+      const message = error instanceof Error ? error.message : "作品分析失败";
+      try { await send("error", {error: message}); } catch (_) { /* client disconnected */ }
+    } finally {
+      if (heartbeat !== undefined) clearInterval(heartbeat);
+      try { await writer.close(); } catch (_) { /* client disconnected */ }
+    }
+  })();
+  EdgeRuntime.waitUntil(task);
+  return new Response(stream.readable, {
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      "X-Accel-Buffering": "no",
+    },
+  });
 }
 
 Deno.serve(async request => {
@@ -302,50 +397,11 @@ Deno.serve(async request => {
       return json({ok: true});
     }
 
-    if (action === "analyze") {
-      const path = clean(body.path, 500);
-      let directVideo = clean(body.videoUrl, 3000);
-      let resolved: Awaited<ReturnType<typeof resolveXhs>> | null = null;
-      const metadata = body.metadata || {};
-
-      if (path) {
-        if (!path.startsWith("references/")) return json({error: "视频路径无效"}, 400);
-        const {data: signed, error} = await admin.storage.from(bucketName).createSignedUrl(path, 60 * 60 * 3);
-        if (error || !signed?.signedUrl) throw error || new Error("无法读取已上传视频");
-        directVideo = signed.signedUrl;
-      } else if (!/^https:\/\//i.test(directVideo) && body.sourceUrl) {
-        resolved = await resolveXhs(body.sourceUrl);
-        directVideo = resolved.video;
-      }
-
-      let mediaType = "video";
-      let mediaContent: any[] = [];
-      if (/^https:\/\//i.test(directVideo)) {
-        mediaContent = [{type: "video_url", video_url: {url: directVideo, fps: 1.0}}];
-      } else if (resolved?.images.length) {
-        mediaType = "gallery";
-        mediaContent = resolved.images.map((url: string) => ({type: "image_url", image_url: {url}}));
-      } else {
-        return json({error: "没有解析到可分析的视频或图集；可改用上传文件"}, 400);
-      }
-
-      const reference = {
-        title: clean(resolved?.title || metadata.title, 240),
-        creator: clean(resolved?.creator || metadata.creator, 160),
-        platform: clean(resolved?.platform || metadata.platform, 100),
-        type: clean(metadata.type || (mediaType === "video" ? "视频" : "图集"), 100),
-        sourceUrl: clean(resolved?.finalUrl || metadata.sourceUrl || body.sourceUrl, 1000),
-        userObservation: clean(metadata.userObservation, 1200),
-        publicDescription: clean(resolved?.description, 5000),
-        chapters: clean(resolved?.chapters, 2000),
-        subtitleTranscript: clean(resolved?.subtitle, 24_000),
-      };
-      const analyzed = await callQwen(mediaContent, reference, mediaType);
-      return json({ok: true, ...analyzed, resolved: resolved ? {
-        title: resolved.title, creator: resolved.creator, platform: resolved.platform,
-        mediaType, durationSeconds: resolved.durationSeconds, coverUrl: resolved.coverUrl,
-        sourceLabel: mediaType === "video" ? "小红书链接·视频实读" : "小红书链接·图集实读",
-      } : {mediaType, sourceLabel: path ? "上传视频·画面声音实读" : "视频直链·画面声音实读"}});
+    if (action === "analyze" || action === "analyze-stream") {
+      const prepared = await prepareAnalysis(body, admin, supabaseUrl);
+      if (action === "analyze-stream") return streamAnalysis(prepared);
+      const analyzed = await callQwen(prepared.mediaContent, prepared.reference, prepared.mediaType);
+      return json({ok: true, ...analyzed, resolved: prepared.resolved});
     }
 
     return json({error: "未知操作"}, 400);

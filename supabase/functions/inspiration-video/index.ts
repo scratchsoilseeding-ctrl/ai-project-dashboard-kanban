@@ -246,6 +246,64 @@ async function callQwen(mediaContent: any[], reference: Record<string, unknown>,
   return {model, result: parseModelJson(textContent)};
 }
 
+async function mirrorRemoteVideo(admin: any, supabaseUrl: string, serviceRoleKey: string, remoteUrl: string) {
+  if (!mediaUrl(remoteUrl)) throw new Error("解析到的视频地址无效");
+  let response: Response;
+  try {
+    response = await fetch(remoteUrl, {
+      signal: AbortSignal.timeout(120_000),
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/140 Safari/537.36",
+        "Accept": "video/mp4,video/*;q=0.9,*/*;q=0.5",
+        "Referer": "https://www.xiaohongshu.com/",
+      },
+    });
+  } catch (error) {
+    console.error("remote video download failed", error);
+    throw new Error(`原视频读取失败：${error instanceof Error ? error.message : "网络连接异常"}`);
+  }
+  if (!response.ok) throw new Error(`原视频读取失败（${response.status}）`);
+  const declaredSize = Number(response.headers.get("content-length") || 0);
+  if (declaredSize > maxVideoBytes) throw new Error("原视频超过 500 MB，暂时无法自动分析");
+  const contentType = clean(response.headers.get("content-type") || "video/mp4", 100).split(";")[0];
+  if (!contentType.startsWith("video/") && contentType !== "application/octet-stream") {
+    throw new Error(`作品链接返回的不是视频（${contentType || "未知格式"}）`);
+  }
+
+  const path = `resolved/${crypto.randomUUID()}.${safeExtension("video.mp4", contentType)}`;
+  const uploadHeaders: Record<string, string> = {
+    Authorization: `Bearer ${serviceRoleKey}`,
+    apikey: serviceRoleKey,
+    "Content-Type": contentType.startsWith("video/") ? contentType : "video/mp4",
+    "Cache-Control": "3600",
+    "x-upsert": "false",
+  };
+  if (declaredSize > 0) uploadHeaders["Content-Length"] = String(declaredSize);
+  let uploadResponse: Response;
+  try {
+    uploadResponse = await fetch(`${supabaseUrl}/storage/v1/object/${bucketName}/${path}`, {
+      method: "POST",
+      headers: uploadHeaders,
+      body: response.body,
+      signal: AbortSignal.timeout(180_000),
+    });
+  } catch (error) {
+    console.error("remote video streaming upload failed", error);
+    throw new Error(`视频标准化失败：${error instanceof Error ? error.message : "传输中断"}`);
+  }
+  if (!uploadResponse.ok) {
+    const detail = clean(await uploadResponse.text(), 300);
+    console.error("remote video mirror upload failed", uploadResponse.status, detail);
+    throw new Error(`视频标准化失败（${uploadResponse.status}）：${detail || "存储服务拒绝了视频"}`);
+  }
+  const {data: signed, error: signError} = await admin.storage.from(bucketName).createSignedUrl(path, 60 * 60 * 3);
+  if (signError || !signed?.signedUrl) {
+    await admin.storage.from(bucketName).remove([path]);
+    throw signError || new Error("无法创建视频分析地址");
+  }
+  return {path, signedUrl: signed.signedUrl, byteLength: declaredSize};
+}
+
 async function prepareAnalysis(body: any, admin: any, supabaseUrl: string) {
   const path = clean(body.path, 500);
   let directVideo = clean(body.videoUrl, 3000);
@@ -264,10 +322,15 @@ async function prepareAnalysis(body: any, admin: any, supabaseUrl: string) {
 
   let mediaType = "video";
   let mediaContent: any[] = [];
+  const shouldMirrorVideo = Boolean(resolved?.video && directVideo);
   const duration = Number(resolved?.durationSeconds || 0);
   const fps = duration >= 240 ? 0.2 : duration >= 90 ? 0.35 : 0.6;
-  if (/^https:\/\//i.test(directVideo)) {
+  if (/^https:\/\//i.test(directVideo) && !shouldMirrorVideo) {
     mediaContent = [{type: "video_url", video_url: {url: directVideo, fps}}];
+  } else if (shouldMirrorVideo) {
+    // Public social-media CDN URLs are normalized inside the streaming task.
+    // This gives Qwen a stable URL with standard Content-Length/Content-Type headers.
+    mediaContent = [];
   } else if (resolved?.images.length) {
     mediaType = "gallery";
     mediaContent = resolved.images.map((url: string) => ({type: "image_url", image_url: {url}}));
@@ -291,10 +354,10 @@ async function prepareAnalysis(body: any, admin: any, supabaseUrl: string) {
     mediaType, durationSeconds: resolved.durationSeconds, coverUrl: resolved.coverUrl,
     sourceLabel: mediaType === "video" ? "小红书链接·视频实读" : "小红书链接·图集实读",
   } : {mediaType, durationSeconds: 0, sourceLabel: path ? "上传视频·画面声音实读" : "视频直链·画面声音实读"};
-  return {mediaContent, reference, mediaType, resolved: resolvedPayload, fps};
+  return {mediaContent, reference, mediaType, resolved: resolvedPayload, fps, directVideo, shouldMirrorVideo};
 }
 
-function streamAnalysis(prepared: Awaited<ReturnType<typeof prepareAnalysis>>) {
+function streamAnalysis(prepared: Awaited<ReturnType<typeof prepareAnalysis>>, admin: any, supabaseUrl: string, serviceRoleKey: string) {
   const encoder = new TextEncoder();
   const stream = new TransformStream<Uint8Array, Uint8Array>();
   const writer = stream.writable.getWriter();
@@ -303,6 +366,7 @@ function streamAnalysis(prepared: Awaited<ReturnType<typeof prepareAnalysis>>) {
 
   const task = (async () => {
     let heartbeat: number | undefined;
+    let mirroredPath = "";
     try {
       await send("progress", {
         stage: "resolved",
@@ -311,12 +375,23 @@ function streamAnalysis(prepared: Awaited<ReturnType<typeof prepareAnalysis>>) {
           : "链接已解析，已读取作品图集",
         resolved: prepared.resolved,
       });
+      let mediaContent = prepared.mediaContent;
+      if (prepared.shouldMirrorVideo) {
+        await send("progress", {stage: "normalizing", message: "正在自动读取并标准化原视频，无需手动下载…"});
+        const mirrored = await mirrorRemoteVideo(admin, supabaseUrl, serviceRoleKey, prepared.directVideo);
+        mirroredPath = mirrored.path;
+        mediaContent = [{type: "video_url", video_url: {url: mirrored.signedUrl, fps: prepared.fps}}];
+        await send("progress", {
+          stage: "normalized",
+          message: `视频已准备好（${Math.max(1, Math.round(mirrored.byteLength / 1024 / 1024))} MB），开始交给 Qwen 分析…`,
+        });
+      }
       await send("progress", {stage: "model", message: `Qwen 正在理解内容（${prepared.fps} FPS），长视频通常需要 1–4 分钟`});
       heartbeat = setInterval(() => {
         const elapsed = Math.max(1, Math.floor((Date.now() - startedAt) / 1000));
         void send("progress", {stage: "model", message: `Qwen 仍在分析，已等待 ${elapsed} 秒…`}).catch(() => undefined);
       }, 12_000) as unknown as number;
-      const analyzed = await callQwen(prepared.mediaContent, prepared.reference, prepared.mediaType);
+      const analyzed = await callQwen(mediaContent, prepared.reference, prepared.mediaType);
       await send("result", {ok: true, ...analyzed, resolved: prepared.resolved});
     } catch (error) {
       console.error("stream analysis failed", error);
@@ -324,6 +399,10 @@ function streamAnalysis(prepared: Awaited<ReturnType<typeof prepareAnalysis>>) {
       try { await send("error", {error: message}); } catch (_) { /* client disconnected */ }
     } finally {
       if (heartbeat !== undefined) clearInterval(heartbeat);
+      if (mirroredPath) {
+        try { await admin.storage.from(bucketName).remove([mirroredPath]); }
+        catch (error) { console.error("temporary mirrored video cleanup failed", error); }
+      }
       try { await writer.close(); } catch (_) { /* client disconnected */ }
     }
   })();
@@ -399,8 +478,16 @@ Deno.serve(async request => {
 
     if (action === "analyze" || action === "analyze-stream") {
       const prepared = await prepareAnalysis(body, admin, supabaseUrl);
-      if (action === "analyze-stream") return streamAnalysis(prepared);
-      const analyzed = await callQwen(prepared.mediaContent, prepared.reference, prepared.mediaType);
+      if (action === "analyze-stream") return streamAnalysis(prepared, admin, supabaseUrl, serviceRoleKey);
+      let mediaContent = prepared.mediaContent;
+      let mirroredPath = "";
+      if (prepared.shouldMirrorVideo) {
+        const mirrored = await mirrorRemoteVideo(admin, supabaseUrl, serviceRoleKey, prepared.directVideo);
+        mirroredPath = mirrored.path;
+        mediaContent = [{type: "video_url", video_url: {url: mirrored.signedUrl, fps: prepared.fps}}];
+      }
+      const analyzed = await callQwen(mediaContent, prepared.reference, prepared.mediaType);
+      if (mirroredPath) await admin.storage.from(bucketName).remove([mirroredPath]);
       return json({ok: true, ...analyzed, resolved: prepared.resolved});
     }
 

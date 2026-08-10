@@ -6,10 +6,14 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Expose-Headers": "x-inspiration-release",
 };
 
 const bucketName = "inspiration-videos";
-const maxVideoBytes = 500 * 1024 * 1024;
+const release = "2026-08-10.11";
+// This project is on Supabase Free. Its global Storage limit is 50 MB, and a
+// bucket-level limit is not allowed to exceed that value.
+const maxVideoBytes = 50 * 1024 * 1024;
 const maxSourceHtmlBytes = 2 * 1024 * 1024;
 const sourceHosts = ["xiaohongshu.com", "xhslink.com"];
 const mediaHosts = ["xhscdn.com", "xhscdn.net"];
@@ -17,7 +21,7 @@ const mediaHosts = ["xhscdn.com", "xhscdn.net"];
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: {...corsHeaders, "Content-Type": "application/json; charset=utf-8"},
+    headers: {...corsHeaders, "Content-Type": "application/json; charset=utf-8", "X-Inspiration-Release": release},
   });
 }
 
@@ -336,7 +340,9 @@ async function mirrorRemoteVideo(admin: any, supabaseUrl: string, serviceRoleKey
   }
   if (!response.ok) throw new Error(`原视频读取失败（${response.status}）`);
   const declaredSize = Number(response.headers.get("content-length") || 0);
-  if (declaredSize > maxVideoBytes) throw new Error("原视频超过 500 MB，暂时无法自动分析");
+  if (declaredSize > maxVideoBytes) {
+    throw new Error("原视频超过 Supabase 免费版 50 MB 的单文件上限；请改用小于 50 MB 的视频，或升级存储套餐");
+  }
   const contentType = clean(response.headers.get("content-type") || "video/mp4", 100).split(";")[0];
   if (!contentType.startsWith("video/") && contentType !== "application/octet-stream") {
     throw new Error(`作品链接返回的不是视频（${contentType || "未知格式"}）`);
@@ -442,7 +448,7 @@ function streamAnalysis(body: any, admin: any, supabaseUrl: string, serviceRoleK
     let stage = "connecting";
     let stepIndex = 1;
     try {
-      await send("progress", {stage, stepIndex, percent: 10, message: "分析请求已接收，云同步密钥和函数环境验证通过。"});
+      await send("progress", {stage, stepIndex, percent: 10, message: `分析请求已接收，云同步密钥和函数环境验证通过（${release}）。`});
       stage = "resolving";
       stepIndex = 2;
       await send("progress", {stage, stepIndex, percent: 20, message: "正在打开作品链接并读取公开信息…"});
@@ -461,6 +467,7 @@ function streamAnalysis(body: any, admin: any, supabaseUrl: string, serviceRoleK
         stage = "normalizing";
         stepIndex = 3;
         await send("progress", {stage, stepIndex, percent: 38, message: "正在自动读取并标准化原视频，无需手动下载…"});
+        await ensureBucket(admin);
         const mirrored = await mirrorRemoteVideo(admin, supabaseUrl, serviceRoleKey, prepared.directVideo);
         mirroredPath = mirrored.path;
         mediaContent = [{type: "video_url", video_url: {url: mirrored.signedUrl, fps: prepared.fps}}];
@@ -508,6 +515,7 @@ function streamAnalysis(body: any, admin: any, supabaseUrl: string, serviceRoleK
       "Content-Type": "text/event-stream; charset=utf-8",
       "Cache-Control": "no-cache, no-transform",
       "X-Accel-Buffering": "no",
+      "X-Inspiration-Release": release,
     },
   });
 }
@@ -531,7 +539,7 @@ Deno.serve(async request => {
 
     if (action === "ping") {
       const model = Deno.env.get("QWEN_OMNI_MODEL") || "qwen3.5-omni-flash";
-      return json({ok: true, model, configured: Boolean(Deno.env.get("DASHSCOPE_API_KEY")), linkPlatforms: ["小红书"]});
+      return json({ok: true, release, model, configured: Boolean(Deno.env.get("DASHSCOPE_API_KEY")), linkPlatforms: ["小红书"]});
     }
 
     if (action === "resolve-link") {
@@ -543,14 +551,13 @@ Deno.serve(async request => {
       }});
     }
 
-    await ensureBucket(admin);
-
     if (action === "create-upload") {
+      await ensureBucket(admin);
       const fileName = clean(body.fileName, 240);
       const contentType = clean(body.contentType, 100).toLowerCase();
       const fileSize = Number(body.fileSize) || 0;
       if (!contentType.startsWith("video/")) return json({error: "只允许上传视频文件"}, 400);
-      if (!fileSize || fileSize > maxVideoBytes) return json({error: "视频必须小于 500 MB"}, 400);
+      if (!fileSize || fileSize > maxVideoBytes) return json({error: "Supabase 免费版的视频上传上限为 50 MB"}, 400);
       const extension = safeExtension(fileName, contentType);
       const path = `references/${crypto.randomUUID()}.${extension}`;
       const {data: signed, error} = await admin.storage.from(bucketName).createSignedUploadUrl(path);
@@ -574,6 +581,7 @@ Deno.serve(async request => {
       let mediaContent = prepared.mediaContent;
       let mirroredPath = "";
       if (prepared.shouldMirrorVideo) {
+        await ensureBucket(admin);
         const mirrored = await mirrorRemoteVideo(admin, supabaseUrl, serviceRoleKey, prepared.directVideo);
         mirroredPath = mirrored.path;
         mediaContent = [{type: "video_url", video_url: {url: mirrored.signedUrl, fps: prepared.fps}}];

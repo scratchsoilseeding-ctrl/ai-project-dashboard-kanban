@@ -161,20 +161,23 @@
   function videoServiceUrl(){return `${cloudConfig.url.replace(/\/+$/,"")}/functions/v1/inspiration-video`;}
   async function callVideoService(action,payload={}){
     if(!hasCloud())throw new Error("请先在项目看板中配置云同步");
-    const response=await fetch(videoServiceUrl(),{method:"POST",headers:{apikey:cloudConfig.anonKey,"Content-Type":"application/json"},body:JSON.stringify({action,accessKey:cloudConfig.spaceId,...payload})});
-    const raw=await response.text();let result;try{result=JSON.parse(raw);}catch(error){result={error:raw};}if(!response.ok)throw new Error(result.error||`视频服务请求失败（${response.status}）`);return result;
+    const requestBody=JSON.stringify({action,accessKey:cloudConfig.spaceId,...payload});
+    const response=await fetch(videoServiceUrl(),{method:"POST",headers:{apikey:cloudConfig.anonKey,"Content-Type":"application/json"},body:requestBody});
+    const raw=await response.text(),release=response.headers.get("x-inspiration-release")||"未知";let result;try{result=JSON.parse(raw);}catch(error){result={error:raw};}if(!response.ok)throw new Error(`${result.error||`视频服务请求失败（${response.status}）`}（服务版本 ${release}）`);return result;
   }
   async function callVideoStream(payload,onProgress=()=>{},signal){
     if(!hasCloud())throw new Error("请先在项目看板中配置云同步");
-    let response;try{response=await fetch(videoServiceUrl(),{method:"POST",headers:{apikey:cloudConfig.anonKey,"Content-Type":"application/json",Accept:"text/event-stream"},body:JSON.stringify({action:"analyze-stream",accessKey:cloudConfig.spaceId,...payload}),signal});}catch(error){if(error?.name==="AbortError")throw error;throw new Error(`连接分析服务失败：${error?.message||"请检查网络"}`);}
-    if(!response.ok){const raw=await response.text();let detail;try{detail=JSON.parse(raw);}catch(error){detail={error:raw};}const failure=new Error(detail.error||`作品分析请求失败（${response.status}）`);failure.analysisStage="connecting";failure.analysisStep=1;throw failure;}
+    const requestBody=JSON.stringify({action:"analyze-stream",accessKey:cloudConfig.spaceId,...payload}),requestBytes=new TextEncoder().encode(requestBody).byteLength;
+    if(requestBytes>64*1024)throw new Error(`浏览器准备的分析请求异常过大（${Math.ceil(requestBytes/1024)} KB），请重新打开灵感编辑器`);
+    let response;try{response=await fetch(videoServiceUrl(),{method:"POST",headers:{apikey:cloudConfig.anonKey,"Content-Type":"application/json",Accept:"text/event-stream"},body:requestBody,signal});}catch(error){if(error?.name==="AbortError")throw error;throw new Error(`连接分析服务失败：${error?.message||"请检查网络"}`);}
+    if(!response.ok){const raw=await response.text(),release=response.headers.get("x-inspiration-release")||"未知";let detail;try{detail=JSON.parse(raw);}catch(error){detail={error:raw};}const failure=new Error(`${detail.error||`作品分析请求失败（${response.status}）`}（服务版本 ${release}，请求 ${requestBytes} B）`);failure.analysisStage="connecting";failure.analysisStep=1;throw failure;}
     if(!response.body)throw new Error("浏览器没有收到分析数据流，请刷新页面后重试");
     const reader=response.body.getReader(),decoder=new TextDecoder();let buffer="",finalResult=null;
     const consume=block=>{if(!block.trim())return;const lines=block.split(/\r?\n/),event=(lines.find(line=>line.startsWith("event:"))||"event: message").slice(6).trim(),raw=lines.filter(line=>line.startsWith("data:")).map(line=>line.slice(5).trim()).join("\n");if(!raw)return;let data;try{data=JSON.parse(raw);}catch(error){return;}if(event==="progress")onProgress(data);else if(event==="result")finalResult=data;else if(event==="error"){const failure=new Error(data.error||"作品分析失败");failure.analysisStage=data.stage||"unknown";failure.analysisStep=Number(data.stepIndex)||analysisProgress.stepIndex;throw failure;}};
     while(true){const {value,done}=await reader.read();buffer+=decoder.decode(value||new Uint8Array(),{stream:!done});const blocks=buffer.split(/\r?\n\r?\n/);buffer=blocks.pop()||"";for(const block of blocks)consume(block);if(done)break;}
     consume(buffer);if(!finalResult)throw new Error("分析连接提前结束，请重试");return finalResult;
   }
-  async function checkOmniService(){try{const result=await callVideoService("ping");if(!result.configured)throw new Error("Qwen-Omni 密钥尚未配置");setOmniState(`${result.model||"Qwen-Omni"} 已就绪`,"ready");return true;}catch(error){setOmniState(error.message,"error");return false;}}
+  async function checkOmniService(){try{const result=await callVideoService("ping");if(!result.configured)throw new Error("Qwen-Omni 密钥尚未配置");setOmniState(`${result.model||"Qwen-Omni"} 已就绪 · ${result.release||"旧版服务"}`,"ready");return true;}catch(error){setOmniState(error.message,"error");return false;}}
   function uploadWithProgress(signedUrl,file){
     return new Promise((resolve,reject)=>{const progress=$("#uploadProgress"),bar=progress.querySelector("i"),label=progress.querySelector("span");progress.hidden=false;bar.style.width="2%";label.textContent="开始上传视频…";const xhr=new XMLHttpRequest();xhr.open("PUT",signedUrl);xhr.setRequestHeader("Content-Type",file.type||"video/mp4");xhr.upload.onprogress=event=>{if(!event.lengthComputable)return;const value=Math.max(2,Math.round(event.loaded/event.total*100));bar.style.width=`${value}%`;label.textContent=`正在上传 ${value}%`;};xhr.onload=()=>{if(xhr.status>=200&&xhr.status<300){bar.style.width="100%";label.textContent="视频上传完成";setTimeout(()=>{progress.hidden=true;},700);resolve();}else reject(new Error(`视频上传失败（${xhr.status}）`));};xhr.onerror=()=>reject(new Error("视频上传中断，请检查网络"));xhr.send(file);});
   }

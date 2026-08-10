@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>灵感研究所 · AI 项目总览台</title>
-  <link rel="stylesheet" href="./inspiration.css" />
+  <link rel="stylesheet" href="./inspiration.css?v=20260810-2" />
 </head>
 <body>
   <header class="site-header">
@@ -119,6 +119,10 @@
     </form>
   </dialog>
 
+  <dialog class="modal analysis-progress-modal" id="analysisProgressDialog">
+    <div class="analysis-progress-page" id="analysisProgressBody" aria-live="polite"></div>
+  </dialog>
+
   <dialog class="modal ai-modal" id="aiDialog">
     <form id="aiForm">
       <div class="modal-head"><div><span>MODEL CONNECTION</span><h2>AI 模型设置</h2></div><button class="icon-close" type="button" data-close-ai aria-label="关闭">×</button></div>
@@ -132,6 +136,6 @@
 
   <datalist id="platformOptions"><option>小红书</option><option>Bilibili</option><option>YouTube</option><option>抖音</option><option>GitHub</option><option>网站</option><option>公众号</option><option>Instagram</option><option>Pinterest</option></datalist>
   <div class="toast" id="toast" role="status"></div>
-  <script src="./inspiration.js"></script>
+  <script src="./inspiration.js?v=20260810-2"></script>
 </body>
 </html>

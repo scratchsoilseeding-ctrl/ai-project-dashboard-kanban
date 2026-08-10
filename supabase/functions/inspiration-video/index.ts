@@ -265,7 +265,7 @@ function analysisPrompt(reference: Record<string, unknown>, mediaType: string) {
 }`;
 }
 
-async function callQwen(mediaContent: any[], reference: Record<string, unknown>, mediaType: string) {
+async function callQwen(mediaContent: any[], reference: Record<string, unknown>, mediaType: string, onResponse?: () => Promise<void>) {
   const apiKey = Deno.env.get("DASHSCOPE_API_KEY");
   const model = Deno.env.get("QWEN_OMNI_MODEL") || "qwen3.5-omni-flash";
   const baseUrl = (Deno.env.get("DASHSCOPE_BASE_URL") || "https://dashscope.aliyuncs.com/compatible-mode/v1").replace(/\/+$/, "");
@@ -293,6 +293,7 @@ async function callQwen(mediaContent: any[], reference: Record<string, unknown>,
     try { message = JSON.parse(raw)?.error?.message || message; } catch (_) { /* keep raw */ }
     throw new Error(`Qwen-Omni 请求失败（${response.status}）：${message}`);
   }
+  if (onResponse) await onResponse();
   const payload = JSON.parse(raw);
   const content = payload?.choices?.[0]?.message?.content;
   const textContent = Array.isArray(content) ? content.map((item: any) => item?.text || "").join("") : String(content || "");
@@ -411,7 +412,7 @@ async function prepareAnalysis(body: any, admin: any, supabaseUrl: string) {
   return {mediaContent, reference, mediaType, resolved: resolvedPayload, fps, directVideo, shouldMirrorVideo};
 }
 
-function streamAnalysis(prepared: Awaited<ReturnType<typeof prepareAnalysis>>, admin: any, supabaseUrl: string, serviceRoleKey: string) {
+function streamAnalysis(body: any, admin: any, supabaseUrl: string, serviceRoleKey: string) {
   const encoder = new TextEncoder();
   const stream = new TransformStream<Uint8Array, Uint8Array>();
   const writer = stream.writable.getWriter();
@@ -421,9 +422,15 @@ function streamAnalysis(prepared: Awaited<ReturnType<typeof prepareAnalysis>>, a
   const task = (async () => {
     let heartbeat: number | undefined;
     let mirroredPath = "";
+    let stage = "resolving";
+    let stepIndex = 1;
     try {
+      await send("progress", {stage, stepIndex, percent: 12, message: "正在验证链接并读取作品公开信息…"});
+      const prepared = await prepareAnalysis(body, admin, supabaseUrl);
       await send("progress", {
         stage: "resolved",
+        stepIndex: 2,
+        percent: 28,
         message: prepared.mediaType === "video"
           ? `链接已解析，已读取${prepared.resolved.durationSeconds ? ` ${Math.ceil(prepared.resolved.durationSeconds / 60)} 分钟` : ""}视频`
           : "链接已解析，已读取作品图集",
@@ -431,26 +438,40 @@ function streamAnalysis(prepared: Awaited<ReturnType<typeof prepareAnalysis>>, a
       });
       let mediaContent = prepared.mediaContent;
       if (prepared.shouldMirrorVideo) {
-        await send("progress", {stage: "normalizing", message: "正在自动读取并标准化原视频，无需手动下载…"});
+        stage = "normalizing";
+        stepIndex = 3;
+        await send("progress", {stage, stepIndex, percent: 38, message: "正在自动读取并标准化原视频，无需手动下载…"});
         const mirrored = await mirrorRemoteVideo(admin, supabaseUrl, serviceRoleKey, prepared.directVideo);
         mirroredPath = mirrored.path;
         mediaContent = [{type: "video_url", video_url: {url: mirrored.signedUrl, fps: prepared.fps}}];
         await send("progress", {
           stage: "normalized",
+          stepIndex: 3,
+          percent: 54,
           message: `视频已准备好（${Math.max(1, Math.round(mirrored.byteLength / 1024 / 1024))} MB），开始交给 Qwen 分析…`,
         });
       }
-      await send("progress", {stage: "model", message: `Qwen 正在理解内容（${prepared.fps} FPS），长视频通常需要 1–4 分钟`});
+      stage = "model";
+      stepIndex = 4;
+      await send("progress", {stage, stepIndex, percent: 62, message: `Qwen 正在理解画面、声音与字幕（${prepared.fps} FPS），长视频通常需要 1–4 分钟`});
       heartbeat = setInterval(() => {
         const elapsed = Math.max(1, Math.floor((Date.now() - startedAt) / 1000));
-        void send("progress", {stage: "model", message: `Qwen 仍在分析，已等待 ${elapsed} 秒…`}).catch(() => undefined);
+        const percent = Math.min(88, 62 + Math.floor(elapsed / 12) * 2);
+        void send("progress", {stage: "model", stepIndex: 4, percent, message: `Qwen 仍在分析，已等待 ${elapsed} 秒…`}).catch(() => undefined);
       }, 12_000) as unknown as number;
-      const analyzed = await callQwen(mediaContent, prepared.reference, prepared.mediaType);
+      const analyzed = await callQwen(mediaContent, prepared.reference, prepared.mediaType, async () => {
+        stage = "report";
+        stepIndex = 5;
+        await send("progress", {stage, stepIndex, percent: 92, message: "模型已返回，正在整理字段并检查报告完整性…"});
+      });
+      stage = "complete";
+      stepIndex = 6;
+      await send("progress", {stage, stepIndex, percent: 100, message: "拆解报告已生成，正在写入编辑器…"});
       await send("result", {ok: true, ...analyzed, resolved: prepared.resolved});
     } catch (error) {
       console.error("stream analysis failed", error);
       const message = error instanceof Error ? error.message : "作品分析失败";
-      try { await send("error", {error: message}); } catch (_) { /* client disconnected */ }
+      try { await send("error", {error: message, stage, stepIndex, percent: 0}); } catch (_) { /* client disconnected */ }
     } finally {
       if (heartbeat !== undefined) clearInterval(heartbeat);
       if (mirroredPath) {
@@ -530,9 +551,10 @@ Deno.serve(async request => {
       return json({ok: true});
     }
 
-    if (action === "analyze" || action === "analyze-stream") {
+    if (action === "analyze-stream") return streamAnalysis(body, admin, supabaseUrl, serviceRoleKey);
+
+    if (action === "analyze") {
       const prepared = await prepareAnalysis(body, admin, supabaseUrl);
-      if (action === "analyze-stream") return streamAnalysis(prepared, admin, supabaseUrl, serviceRoleKey);
       let mediaContent = prepared.mediaContent;
       let mirroredPath = "";
       if (prepared.shouldMirrorVideo) {

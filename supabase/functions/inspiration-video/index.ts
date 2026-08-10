@@ -25,6 +25,23 @@ function clean(value: unknown, max = 600) {
   return String(value ?? "").trim().slice(0, max);
 }
 
+async function sha256Hex(value: string) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function accessKeyExists(admin: any, accessKey: string) {
+  const spaceHash = await sha256Hex(accessKey);
+  const {data, error} = await admin
+    .from("ai_project_portfolios")
+    .select("space_hash")
+    .eq("space_hash", spaceHash)
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`云同步密钥验证服务失败：${error.message}`);
+  return Boolean(data?.space_hash);
+}
+
 function hostMatches(host: string, allowed: string[]) {
   const normalized = host.toLowerCase().replace(/\.$/, "");
   return allowed.some(domain => normalized === domain || normalized.endsWith(`.${domain}`));
@@ -502,19 +519,15 @@ Deno.serve(async request => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-    if (!supabaseUrl || !serviceRoleKey || !anonKey) return json({error: "Supabase 函数环境未就绪"}, 500);
+    if (!supabaseUrl || !serviceRoleKey) return json({error: "Supabase 函数环境未就绪"}, 500);
 
     const body = await request.json();
     const action = clean(body.action, 40);
     const accessKey = clean(body.accessKey, 300);
     if (accessKey.length < 24) return json({error: "云同步密钥无效"}, 401);
 
-    const validator = createClient(supabaseUrl, anonKey, {auth: {persistSession: false}});
-    const {data: portfolio, error: validationError} = await validator.rpc("portfolio_load", {p_access_key: accessKey});
-    if (validationError || !Array.isArray(portfolio) || !portfolio.length) return json({error: "无法验证云同步密钥"}, 401);
-
     const admin = createClient(supabaseUrl, serviceRoleKey, {auth: {persistSession: false}});
+    if (!await accessKeyExists(admin, accessKey)) return json({error: "无法验证云同步密钥"}, 401);
 
     if (action === "ping") {
       const model = Deno.env.get("QWEN_OMNI_MODEL") || "qwen3.5-omni-flash";

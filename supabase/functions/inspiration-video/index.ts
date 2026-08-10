@@ -69,6 +69,60 @@ function parseModelJson(value: string) {
   }
 }
 
+function textList(value: unknown) {
+  if (Array.isArray(value)) return value.map(item => clean(typeof item === "string" ? item : JSON.stringify(item), 1600)).filter(Boolean);
+  return clean(value, 12_000).split(/\n+/).map(item => item.replace(/^[-*\d.、)\s]+/, "").trim()).filter(Boolean);
+}
+
+function normalizeTimeline(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.map((item: any, index) => {
+      if (typeof item === "string") return {time: "", title: `片段 ${index + 1}`, detail: clean(item, 1600)};
+      return {
+        time: clean(item?.time ?? item?.timestamp ?? item?.时间 ?? item?.时间点, 80),
+        title: clean(item?.title ?? item?.heading ?? item?.标题 ?? item?.段落, 180),
+        detail: clean(item?.detail ?? item?.description ?? item?.content ?? item?.细节 ?? item?.内容, 1800),
+      };
+    }).filter(item => item.time || item.title || item.detail);
+  }
+  return textList(value).map((detail, index) => ({time: "", title: `片段 ${index + 1}`, detail}));
+}
+
+function pick(root: any, ...keys: string[]) {
+  for (const key of keys) {
+    const value = root?.[key];
+    if (value !== undefined && value !== null && value !== "") return value;
+  }
+  return "";
+}
+
+function normalizeReport(parsed: any) {
+  let root = parsed;
+  for (let depth = 0; depth < 3; depth++) {
+    const nested = root?.result ?? root?.analysis ?? root?.report ?? root?.data ?? root?.报告 ?? root?.分析结果;
+    if (!nested || typeof nested !== "object" || Array.isArray(nested)) break;
+    root = nested;
+  }
+  const report = {
+    highlights: clean(pick(root, "highlights", "contentHighlights", "overview", "亮点", "内容亮点", "核心亮点"), 8000),
+    timeline: normalizeTimeline(pick(root, "timeline", "timeLine", "segments", "时间线", "逐段时间轴", "分段拆解")),
+    structure: clean(pick(root, "structure", "contentStructure", "叙事结构", "内容结构"), 6000),
+    audiovisual: clean(pick(root, "audiovisual", "audioVisual", "visualAudio", "视听分析", "画面与声音配合"), 6000),
+    reproducibility: clean(pick(root, "reproducibility", "replicability", "copyAnalysis", "可复制性", "可复制性分析"), 8000),
+    copyScore: Math.max(1, Math.min(5, Number(pick(root, "copyScore", "replicationScore", "可复制性评分", "复制分数")) || 3)),
+    steps: textList(pick(root, "steps", "productionSteps", "actionSteps", "制作步骤", "步骤拆解")),
+    evidence: textList(pick(root, "evidence", "observations", "依据", "证据")),
+    tags: textList(pick(root, "tags", "keywords", "标签", "关键词")).slice(0, 8),
+  };
+  const substance = report.highlights.length + report.structure.length + report.audiovisual.length
+    + report.reproducibility.length + report.timeline.length * 30 + report.steps.length * 30;
+  if (substance < 80) {
+    console.error("Qwen report was structurally empty", Object.keys(parsed || {}), Object.keys(root || {}));
+    throw new Error("Qwen 已返回，但报告结构为空；系统已阻止空报告，请重新分析一次");
+  }
+  return report;
+}
+
 async function ensureBucket(admin: any) {
   const {error} = await admin.storage.getBucket(bucketName);
   if (!error) return;
@@ -243,7 +297,7 @@ async function callQwen(mediaContent: any[], reference: Record<string, unknown>,
   const content = payload?.choices?.[0]?.message?.content;
   const textContent = Array.isArray(content) ? content.map((item: any) => item?.text || "").join("") : String(content || "");
   if (!textContent) throw new Error("Qwen-Omni 没有返回分析内容");
-  return {model, result: parseModelJson(textContent)};
+  return {model, result: normalizeReport(parseModelJson(textContent))};
 }
 
 async function mirrorRemoteVideo(admin: any, supabaseUrl: string, serviceRoleKey: string, remoteUrl: string) {

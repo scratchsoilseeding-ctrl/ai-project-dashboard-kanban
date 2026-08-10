@@ -422,15 +422,18 @@ function streamAnalysis(body: any, admin: any, supabaseUrl: string, serviceRoleK
   const task = (async () => {
     let heartbeat: number | undefined;
     let mirroredPath = "";
-    let stage = "resolving";
+    let stage = "connecting";
     let stepIndex = 1;
     try {
-      await send("progress", {stage, stepIndex, percent: 12, message: "正在验证链接并读取作品公开信息…"});
+      await send("progress", {stage, stepIndex, percent: 10, message: "分析请求已接收，云同步密钥和函数环境验证通过。"});
+      stage = "resolving";
+      stepIndex = 2;
+      await send("progress", {stage, stepIndex, percent: 20, message: "正在打开作品链接并读取公开信息…"});
       const prepared = await prepareAnalysis(body, admin, supabaseUrl);
       await send("progress", {
         stage: "resolved",
         stepIndex: 2,
-        percent: 28,
+        percent: 30,
         message: prepared.mediaType === "video"
           ? `链接已解析，已读取${prepared.resolved.durationSeconds ? ` ${Math.ceil(prepared.resolved.durationSeconds / 60)} 分钟` : ""}视频`
           : "链接已解析，已读取作品图集",

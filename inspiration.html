@@ -22,7 +22,7 @@
       <div class="hero-copy">
         <span class="kicker">REFERENCE LAB · 参考不是终点</span>
         <h1>把“好喜欢”<br />变成<span>做得出来</span></h1>
-        <p>收藏他人的作品链接，把视频交给 Qwen-Omni 真正看完、听完，再按时间轴拆出亮点、结构与可复刻的制作路线。</p>
+        <p>粘贴他人的作品链接，系统自动提取公开的视频或图集，再交给 Qwen-Omni 看完、听完，按时间轴拆出亮点、结构与可复刻的制作路线。</p>
       </div>
       <div class="hero-actions">
         <button class="primary light" id="addInspirationBtn">＋ 收下一份灵感</button>
@@ -77,17 +77,18 @@
           <label>内容类型<input id="itemType" placeholder="网页、视频、产品、视觉、文章…" /></label>
           <label class="full">你被什么打动了<textarea id="itemNote" rows="4" placeholder="例如：开头三秒很有冲击力；信息结构很清楚；视觉风格很克制……"></textarea></label>
           <div class="video-field full">
-            <div class="field-title"><span class="field-label">视频素材（深度分析必需）</span><b>QWEN OMNI</b></div>
-            <label class="direct-video">可直接访问的视频地址<input id="itemVideoUrl" type="url" placeholder="可选：MP4 / MOV / WebM 公网直链，不是普通作品页面链接" /></label>
+            <div class="field-title"><span class="field-label">作品内容读取</span><b>QWEN OMNI</b></div>
+            <div class="link-resolver-banner"><span>↗</span><div><strong>优先自动解析作品链接</strong><p>小红书公开视频与图集无需下载，点击右侧“解析链接并深度分析”即可。</p></div></div>
+            <label class="direct-video">备用：可直接访问的视频地址<input id="itemVideoUrl" type="url" placeholder="可选：MP4 / MOV / WebM 公网直链" /></label>
             <div class="video-zone" id="videoZone">
               <input id="videoInput" type="file" accept="video/mp4,video/quicktime,video/webm,video/x-m4v" hidden />
               <div class="video-icon">▶</div>
-              <div><strong id="videoStatus">选择视频文件</strong><p id="videoMeta">上传后由 Qwen-Omni 同时理解画面、讲话和环境声音</p></div>
-              <button class="secondary compact" type="button" id="chooseVideoBtn">选择视频</button>
+              <div><strong id="videoStatus">选择视频文件（备用）</strong><p id="videoMeta">链接无法解析时，再从本机上传视频</p></div>
+              <button class="secondary compact" type="button" id="chooseVideoBtn">备用上传</button>
               <button class="text-button danger" type="button" id="removeVideoBtn" hidden>移除</button>
             </div>
             <div class="upload-progress" id="uploadProgress" hidden><i></i><span>准备上传…</span></div>
-            <p class="field-help">小红书、B 站等作品页面链接通常不能直接读取视频。要得到逐段讲解，请同时上传视频文件或填写视频直链。</p>
+            <p class="field-help">目前支持自动实读小红书公开作品。其他平台会先使用文字辅助分析；需要逐段还原时，可填写视频直链或备用上传。</p>
           </div>
           <div class="cover-field full">
             <span class="field-label">卡片封面（可选）</span>
@@ -101,7 +102,7 @@
         </div>
 
         <aside class="analysis-editor">
-          <div class="analysis-head"><div><span>VIDEO DECODE</span><h3>深度拆解报告</h3><small id="omniState">Qwen-Omni 服务待检测</small></div><button class="ai-button" type="button" id="analyzeBtn">✦ 视频深度分析</button></div>
+          <div class="analysis-head"><div><span>VIDEO DECODE</span><h3>深度拆解报告</h3><small id="omniState">Qwen-Omni 服务待检测</small></div><button class="ai-button" type="button" id="analyzeBtn">✦ 解析链接并深度分析</button></div>
           <label>内容亮点<textarea id="itemHighlights" rows="4" placeholder="它最值得学习的表达、结构或体验"></textarea></label>
           <label>逐段时间轴<textarea id="itemTimeline" rows="7" placeholder="00:00｜开场如何建立期待&#10;00:18｜第一个核心观点及证据"></textarea></label>
           <label>内容结构<textarea id="itemStructure" rows="4" placeholder="开场、铺垫、论证、案例、转折、收束之间的关系"></textarea></label>
@@ -111,7 +112,7 @@
           <label>分析依据<textarea id="itemEvidence" rows="4" placeholder="每行一条：具体时刻、原话或画面证据"></textarea></label>
           <label>可复制性评分<select id="itemScore"><option value="0">尚未判断</option><option value="1">1 · 高度依赖原作者</option><option value="2">2 · 需要较多资源</option><option value="3">3 · 可以局部借鉴</option><option value="4">4 · 路径清楚可复刻</option><option value="5">5 · 可以立即动手</option></select></label>
           <label>标签<input id="itemTags" placeholder="用逗号分隔，如：叙事, 视觉, AI 产品" /></label>
-          <p class="analysis-hint" id="analysisHint">上传视频后，Qwen-Omni 会同时读取画面与声音；只有作品链接时仍会使用原来的文本分析。</p>
+          <p class="analysis-hint" id="analysisHint">先粘贴作品链接；支持的平台会自动提取内容并让 Qwen-Omni 实读，上传素材只作备用。</p>
         </aside>
       </div>
       <div class="modal-footer"><span>修改先保存到当前浏览器，并复用项目看板的云同步设置。</span><button class="secondary" type="button" data-close-editor>取消</button><button class="primary" type="submit">保存灵感卡</button></div>
@@ -121,7 +122,7 @@
   <dialog class="modal ai-modal" id="aiDialog">
     <form id="aiForm">
       <div class="modal-head"><div><span>MODEL CONNECTION</span><h2>AI 模型设置</h2></div><button class="icon-close" type="button" data-close-ai aria-label="关闭">×</button></div>
-      <p class="privacy-note"><strong>这里仍是普通文本模型配置。</strong>它用于没有视频时的链接辅助分析。Qwen-Omni 密钥由 Supabase Edge Function 保管，不会出现在浏览器或 GitHub 中。</p>
+      <p class="privacy-note"><strong>这里是普通文本模型的备用配置。</strong>它只在作品平台暂不支持链接实读时使用。Qwen-Omni 密钥由 Supabase Edge Function 保管，不会出现在浏览器或 GitHub 中。</p>
       <label>API 地址<input id="aiEndpoint" required placeholder="https://api.deepseek.com/v1" /></label>
       <div class="two-fields"><label>模型名称<input id="aiModel" required placeholder="deepseek-chat" /></label><label>API Key<input id="aiKey" type="password" required placeholder="sk-…" /></label></div>
       <p class="form-message" id="aiMessage"></p>
